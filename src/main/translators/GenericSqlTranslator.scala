@@ -1,24 +1,21 @@
 package tyqu.translators
 
 import tyqu.platforms.Platform
-import tyqu.Alias
-import tyqu.ColumnValue
-import tyqu.Concat
-import tyqu.Equal
-import tyqu.Expression
-import tyqu.NotEqual
-import tyqu.QueryBuilder
-import tyqu.LiteralExpression
-import tyqu.Numeric
+import tyqu.*
 
 class GenericSqlTranslator(platform: Platform):
 
   def translate(qb: QueryBuilder[?]): String =
     List(
       "SELECT " + qb.scope.toList.map(translateSelectExpression).mkString(", "),
+
       "FROM " + platform.formatIdentifier(qb.from),
       if (qb.where.isEmpty) null
-      else "WHERE " + qb.where.map(translateExpression).mkString(" AND ")
+      else "WHERE " + qb.where.map(translateExpression).mkString(" AND "),
+
+      if (qb.orderBy.isEmpty) null
+      else "ORDER BY " + qb.orderBy.map(translateOrderByExpression).mkString(", "),
+
     ).filter(_ != null).mkString("\n")
 
 
@@ -28,6 +25,10 @@ class GenericSqlTranslator(platform: Platform):
         f"${translateExpression(expression)} AS ${platform.formatIdentifier(alias)}"
       case _ => translateExpression(select)
 
+  private def translateOrderByExpression(ord: OrderBy) = ord match
+    case Asc(expr) => translateExpression(expr) + " ASC"
+    case Desc(expr) => translateExpression(expr) + " DESC"
+    case expr: Expression[?] => translateExpression(expr)
 
   private def translateExpression(expr: Expression[?]): String = expr match
       case ColumnValue(_, name, relation) =>

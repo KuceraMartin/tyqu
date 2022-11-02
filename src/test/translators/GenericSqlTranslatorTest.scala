@@ -105,11 +105,45 @@ class GenericSqlTranslatorTest extends UnitTest:
     )
   }
 
+
+  test("order by many columns") {
+    val query = translator.translate(
+        from(table).sortBy{ t =>
+          (Desc(t.lastName), Asc(t.age), Asc(t.id))
+        }
+      )
+
+      assertEquals(query,
+      """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`, `t`.`age`
+         |FROM `t`
+         |ORDER BY `t`.`last_name` DESC, `t`.`age` ASC, `t`.`id` ASC""".stripMargin)
+  }
+
+
+  test("order by one column") {
+    val query = translator.translate(
+        from(table).sortBy(_.id)
+      )
+
+      assertEquals(query,
+      """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`, `t`.`age`
+         |FROM `t`
+         |ORDER BY `t`.`id`""".stripMargin)
+  }
+
 	
   test("complex") {
-    assertEquals(
-      translator.translate(from(table).map(t => (t.id, t.firstName.concat(t.lastName).as("name")))),
+    val query = translator.translate(
+        from(table).map{ t =>
+          (t.id, t.firstName.concat(t.lastName).as("name"))
+        }
+        .sortBy{ t =>
+          (t.name.asc, t.id.desc)
+        }
+      )
+
+    assertEquals(query,
       """|SELECT `t`.`id`, CONCAT(`t`.`first_name`, `t`.`last_name`) AS `name`
-         |FROM `t`""".stripMargin,
-    )
+         |FROM `t`
+         |ORDER BY `name` ASC, `t`.`id` DESC""".stripMargin)
   }
