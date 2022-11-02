@@ -9,6 +9,8 @@ type ExpressionSpecificType[E] = E match
 
 abstract sealed class Expression[+T]:
   def as(n: String) = Alias[T, n.type](n, this)
+  def asc = Asc(this)
+  def desc = Desc(this)
 
 abstract sealed class NamedExpression[+T, N <: String & Singleton](val alias: N) extends Expression[T]
 case class Alias[+T, N <: String & Singleton](name: N, expression: Expression[T]) extends NamedExpression[T, N](name)
