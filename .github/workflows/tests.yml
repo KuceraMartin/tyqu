@@ -1,5 +1,5 @@
 name: Tests
-on: [push, pull_request, workflow_dispatch]
+on: [pull_request, workflow_dispatch]
 jobs:
   run-tests:
     runs-on: ubuntu-latest
@@ -7,4 +7,5 @@ jobs:
       - uses: actions/checkout@v3
       - uses: coursier/cache-action@v6
       - uses: VirtusLab/scala-cli-setup@main
+      - run: scala-cli compile --test src/
       - run: scala-cli test src/
