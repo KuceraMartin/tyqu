@@ -14,7 +14,7 @@ abstract sealed class NamedExpression[T, N <: String & Singleton](val alias: N) 
 
 case class Alias[T, N <: String & Singleton](name: N, expression: Expression[T]) extends NamedExpression[T, N](name)
 
-case class ColumnValue[T, A <: String & Singleton](internalName: A, name: String, relation: String) extends NamedExpression[T, A](internalName)
+case class ColumnValue[T, N <: String & Singleton](name: N, relation: Relation) extends NamedExpression[T, N](name)
 
 case class LiteralExpression[T](value: T) extends Expression[T]
 

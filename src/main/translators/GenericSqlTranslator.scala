@@ -31,8 +31,8 @@ class GenericSqlTranslator(platform: Platform):
     case expr: Expression[?] => translateExpression(expr)
 
   private def translateExpression(expr: Expression[?]): String = expr match
-      case ColumnValue(_, name, relation) =>
-        platform.formatIdentifier(relation) + "." + platform.formatIdentifier(name)
+      case ColumnValue(name, relation) =>
+        platform.formatIdentifier(relation.name) + "." + platform.formatIdentifier(relation.getColumnName(name))
 
       case Alias(name, _) =>
         platform.formatIdentifier(name)

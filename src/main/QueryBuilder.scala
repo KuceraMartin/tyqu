@@ -41,15 +41,15 @@ type ColumnsToExpressions[T <: Tuple] <: Tuple =
     case EmptyTuple => EmptyTuple
     case Column[r, n] *: t => ColumnValue[r, n] *: ColumnsToExpressions[t]
 
-def columnsToExpressions[T <: Tuple](columns: T, relation: String): ColumnsToExpressions[T] =
+def columnsToExpressions[T <: Tuple](columns: T, relation: Relation): ColumnsToExpressions[T] =
   columns match
     case _: EmptyTuple => EmptyTuple
     case t: (Column[r, n] *: tailType) =>
-      ColumnValue[r, n](t.head.alias, t.head.name, relation) *: columnsToExpressions(t.tail, relation)
+      ColumnValue[r, n](t.head.name, relation) *: columnsToExpressions(t.tail, relation)
 
 transparent inline def from[T <: Tuple](table: Table[T]) =
   QueryBuilderFactory.create(
-    columnsToExpressions(table.columns, table.tableName),
+    columnsToExpressions(table.columns, table),
     table.tableName,
     Array.empty,
     List.empty,

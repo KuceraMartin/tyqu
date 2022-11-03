@@ -10,8 +10,8 @@ class GenericSqlTranslatorTest extends UnitTest:
       tableName = "t",
       columns = (
         column[Int]("id"),
-        column[String]("firstName", "first_name"),
-        column[String]("lastName", "last_name"),
+        column[String]("firstName"),
+        column[String]("lastName"),
         column[Int]("age"),
       ),
     )
