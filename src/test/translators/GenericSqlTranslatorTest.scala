@@ -20,8 +20,12 @@ class GenericSqlTranslatorTest extends UnitTest:
 
 
   test("filter ===") {
+    val query = translator.translate(
+        from(table).filter(_.id === 1)
+      )
+
     assertEquals(
-      translator.translate(from(table).filter(_.id === 1)),
+      query,
       """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`, `t`.`age`
          |FROM `t`
          |WHERE `t`.`id` = 1""".stripMargin
@@ -30,8 +34,12 @@ class GenericSqlTranslatorTest extends UnitTest:
 
 
   test("filter =!=") {
+    val query = translator.translate(
+        from(table).filter(_.firstName =!= "John")
+      )
+
     assertEquals(
-      translator.translate(from(table).filter(_.firstName =!= "John")),
+      query,
       """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`, `t`.`age`
          |FROM `t`
          |WHERE `t`.`first_name` != 'John'""".stripMargin,
@@ -40,8 +48,12 @@ class GenericSqlTranslatorTest extends UnitTest:
 
 
   test("map to Tuple3") {
+    val query = translator.translate(
+        from(table).map{ t => (t.id, t.firstName, t.lastName) }
+      )
+
     assertEquals(
-      translator.translate(from(table).map(t => (t.id, t.firstName, t.lastName))),
+      query,
       """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`
          |FROM `t`""".stripMargin,
     )
@@ -49,8 +61,12 @@ class GenericSqlTranslatorTest extends UnitTest:
 
 
   test("map to Tuple2 + Tuple1") {
+    val query = translator.translate(
+        from(table).map{ t => (t.id, t.firstName) :* t.lastName }
+      )
+    
     assertEquals(
-      translator.translate(from(table).map(t => (t.id, t.firstName) :* t.lastName)),
+      query,
       """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`
          |FROM `t`""".stripMargin,
     )
@@ -58,16 +74,24 @@ class GenericSqlTranslatorTest extends UnitTest:
 
 
   test("map to Tuple1 + Tuple2") {
+    val query = translator.translate(
+        from(table).map{ t => t.id *: (t.firstName, t.lastName) }
+      )
+
     assertEquals(
-      translator.translate(from(table).map(t => t.id *: (t.firstName, t.lastName))),
+      query,
       """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`
          |FROM `t`""".stripMargin,
     )
   }
 
   test("map to 3 * Tuple1") {
+    val query = translator.translate(
+        from(table).map{ t => t.id *: t.firstName *: t.lastName *: EmptyTuple }
+      )
+
     assertEquals(
-      translator.translate(from(table).map(t => (t.id *: t.firstName *: t.lastName *: EmptyTuple))),
+      query,
       """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`
          |FROM `t`""".stripMargin,
     )
@@ -75,16 +99,24 @@ class GenericSqlTranslatorTest extends UnitTest:
 
 
   test("map to Tuple1") {
+    val query = translator.translate(
+        from(table).map(_.id)
+      )
+
     assertEquals(
-      translator.translate(from(table).map(_.id)),
+      query,
       """|SELECT `t`.`id`
          |FROM `t`""".stripMargin,
     )
   }
 
   test("map with alias") {
+    val query = translator.translate(
+        from(table).map{ t => (t.id, t.firstName.as("fn"), t.lastName.as("ln")) }
+      )
+
     assertEquals(
-      translator.translate(from(table).map(t => (t.id, t.firstName.as("fn"), t.lastName.as("ln")))),
+      query,
       """|SELECT `t`.`id`, `t`.`first_name` AS `fn`, `t`.`last_name` AS `ln`
          |FROM `t`""".stripMargin,
     )
@@ -92,14 +124,13 @@ class GenericSqlTranslatorTest extends UnitTest:
 
 
   test("renamed columns accessible after map") {
+    val query = translator.translate(
+        from(table).map{ t => (t.id, t.firstName.as("fn"), t.lastName.as("ln")) }
+                   .map(_.ln)
+      )
+
     assertEquals(
-      translator.translate(from(table).map { t =>
-          (t.id, t.firstName.as("fn"), t.lastName.as("ln"))
-        }
-        .map { t => 
-          t.ln  
-        }
-        ),
+      query,
       """|SELECT `t`.`last_name` AS `ln`
          |FROM `t`""".stripMargin,
     )
@@ -108,9 +139,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("order by many columns") {
     val query = translator.translate(
-        from(table).sortBy{ t =>
-          (Desc(t.lastName), Asc(t.age), Asc(t.id))
-        }
+        from(table).sortBy{ t => (Desc(t.lastName), Asc(t.age), Asc(t.id)) }
       )
 
       assertEquals(query,
@@ -134,12 +163,8 @@ class GenericSqlTranslatorTest extends UnitTest:
 	
   test("complex") {
     val query = translator.translate(
-        from(table).map{ t =>
-          (t.id, t.firstName.concat(t.lastName).as("name"))
-        }
-        .sortBy{ t =>
-          (t.name.asc, t.id.desc)
-        }
+        from(table).map{ t => (t.id, t.firstName.concat(t.lastName).as("name")) }
+                   .sortBy{ t => (t.name.asc, t.id.desc) }
       )
 
     assertEquals(query,

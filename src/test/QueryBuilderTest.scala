@@ -20,6 +20,6 @@ class QueryBuilderTest extends UnitTest:
     assert(List(
       "error:",
       "Found:    (\"***str$$$\" : String)",
-      "Required: tyqu.ExpressionSpecificType[(?1 : tyqu.ColumnValue[Int, (\"id\" : String)])]"
+      "Required: tyqu.Expression[Int]",
     ).forall(errors.contains))
   }

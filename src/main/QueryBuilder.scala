@@ -11,7 +11,7 @@ case class QueryBuilder[T <: Scope](scope: T, from: String, where: Array[Express
   
   @targetName("mapToTuple")
   inline transparent def map[T2 <: Tuple](inline fn: T => T2): QueryBuilder[?] =
-    ScopeFactory.create(
+    QueryBuilderFactory.create(
       fn(scope),
       from,
       where,
@@ -48,7 +48,7 @@ def columnsToExpressions[T <: Tuple](columns: T, relation: String): ColumnsToExp
       ColumnValue[r, n](t.head.alias, t.head.name, relation) *: columnsToExpressions(t.tail, relation)
 
 transparent inline def from[T <: Tuple](table: Table[T]) =
-  ScopeFactory.create(
+  QueryBuilderFactory.create(
     columnsToExpressions(table.columns, table.tableName),
     table.tableName,
     Array.empty,

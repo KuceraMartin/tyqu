@@ -5,7 +5,8 @@ import scala.quoted.*
 
 type ScopeSubtype[T <: Scope] = T
 
-object ScopeFactory:
+
+object QueryBuilderFactory:
 
   transparent inline def create[T <: Tuple](inline schema: T, inline from: String, inline where: Array[Expression[Boolean]], inline orderBy: List[OrderBy]) = ${createImpl('schema, 'from, 'where, 'orderBy)}
 
