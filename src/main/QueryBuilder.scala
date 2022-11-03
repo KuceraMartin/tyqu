@@ -2,6 +2,8 @@ package tyqu
 
 import scala.annotation.targetName
 
+import utils.checkTupleOf
+
 
 case class QueryBuilder[T <: Scope](scope: T, from: String, where: Array[Expression[Boolean]], orderBy: List[OrderBy]):
 
@@ -11,6 +13,7 @@ case class QueryBuilder[T <: Scope](scope: T, from: String, where: Array[Express
   
   @targetName("mapToTuple")
   inline transparent def map[T2 <: Tuple](inline fn: T => T2): QueryBuilder[?] =
+    checkTupleOf[NamedExpression[_, _]](fn(scope))
     QueryBuilderFactory.create(
       fn(scope),
       from,
@@ -19,18 +22,19 @@ case class QueryBuilder[T <: Scope](scope: T, from: String, where: Array[Express
     )
 
   @targetName("mapToTuple1")
-  inline transparent def map[V](inline fn: T => Expression[V]): QueryBuilder[?] =
+  inline transparent def map[V, T2 <: String & Singleton](inline fn: T => NamedExpression[V, T2]): QueryBuilder[?] =
     map(s => Tuple1(fn(s)))
 
   def filter(predicate: T => Expression[Boolean]): QueryBuilder[T] =
     new QueryBuilder(scope, from, where :+ predicate(scope), orderBy)
 
   @targetName("sortByWithTuple")
-  def sortBy(fn: T => Tuple): QueryBuilder[T] =
+  inline transparent def sortBy(fn: T => Tuple): QueryBuilder[T] =
+    checkTupleOf[OrderBy](fn(scope))
     new QueryBuilder(scope, from, where, fn(scope).toList.asInstanceOf[List[OrderBy]])
 
   @targetName("sortByWithTuple1")
-  def sortBy(fn: T => OrderBy): QueryBuilder[T] =
+  inline transparent def sortBy(fn: T => OrderBy): QueryBuilder[T] =
     sortBy(s => Tuple1(fn(s)))
 
 end QueryBuilder

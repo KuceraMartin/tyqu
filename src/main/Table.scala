@@ -1,5 +1,7 @@
 package tyqu
 
+import utils.checkTupleOf
+
 
 def camelToSnakeCase(s: String) =
   if (s.isBlank) ""
@@ -20,6 +22,11 @@ case class Table[T <: Tuple](
   namingConvention: String => String = camelToSnakeCase,
 ) extends Relation(tableName):
   override def getColumnName(property: String): String = namingConvention(property)
+
+object Table:
+  inline transparent def apply[T <: Tuple](tableName: String, columns: T, namingConvention: String => String = camelToSnakeCase) =
+    checkTupleOf[Column[_, _]](columns)
+    new Table(tableName, columns, namingConvention)
 
 
 // , WriteType <: ReadType | Null

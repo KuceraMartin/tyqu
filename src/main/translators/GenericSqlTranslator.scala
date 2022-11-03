@@ -43,11 +43,20 @@ class GenericSqlTranslator(platform: Platform):
       case LiteralExpression(value) =>
         f"'${value.toString}'"
 
+      case LessThan(lhs, rhs) =>
+        f"${translateExpression(lhs)} < ${translateExpression(rhs)}"
+
+      case GreaterThan(lhs, rhs) =>
+        f"${translateExpression(lhs)} > ${translateExpression(rhs)}"
+
       case Equal(lhs, rhs) =>
         f"${translateExpression(lhs)} = ${translateExpression(rhs)}"
 
       case NotEqual(lhs, rhs) =>
         f"${translateExpression(lhs)} != ${translateExpression(rhs)}"
+
+      case Plus(lhs, rhs) =>
+        f"${translateExpression(lhs)} + ${translateExpression(rhs)}"
 
       case Concat(lhs, rhs) =>
         f"CONCAT(${translateExpression(lhs)}, ${translateExpression(rhs)})"
