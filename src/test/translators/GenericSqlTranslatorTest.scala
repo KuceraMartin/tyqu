@@ -85,6 +85,7 @@ class GenericSqlTranslatorTest extends UnitTest:
     )
   }
 
+
   test("map to 3 * Tuple1") {
     val query = translator.translate(
         from(table).map{ t => t.id *: t.firstName *: t.lastName *: EmptyTuple }
@@ -109,6 +110,7 @@ class GenericSqlTranslatorTest extends UnitTest:
          |FROM `t`""".stripMargin,
     )
   }
+
 
   test("map with alias") {
     val query = translator.translate(
