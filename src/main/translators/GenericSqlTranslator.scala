@@ -9,18 +9,21 @@ class GenericSqlTranslator(platform: Platform):
 
   def translate(qb: QueryBuilder[?]): String =
     List(
-      "SELECT " + qb.scope.toList.map(translateSelectExpression).mkString(", "),
+      Some("SELECT " + qb.scope.toList.map(translateSelectExpression).mkString(", ")),
 
-      "FROM " + platform.formatIdentifier(qb.from),
+      Some("FROM " + platform.formatIdentifier(qb.from)),
 
-      qb.where match
-        case Some(expr) => "WHERE " + translateExpression(expr)
-        case None => null,
+      qb.where.map("WHERE " + translateExpression(_)),
 
-      if (qb.orderBy.isEmpty) null
-      else "ORDER BY " + qb.orderBy.map(translateOrderByExpression).mkString(", "),
+      if (qb.orderBy.isEmpty) None
+      else Some("ORDER BY " + qb.orderBy.map(translateOrderByExpression).mkString(", ")),
 
-    ).filter(_ != null).mkString("\n")
+      qb.limit.map("LIMIT " + _),
+
+      if (qb.offset > 0) Some(f"OFFSET ${qb.offset}")
+      else None,
+
+    ).flatten.mkString("\n")
 
 
   private def translateSelectExpression(select: Expression[?]): String =

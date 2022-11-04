@@ -205,15 +205,45 @@ class GenericSqlTranslatorTest extends UnitTest:
          |ORDER BY `a`""".stripMargin)
   }
 
+
+  test("limit") {
+    val query = translator.translate(
+        from(table).limitBy(10)
+      )
+
+      assertEquals(query,
+      """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`, `t`.`age`
+         |FROM `t`
+         |LIMIT 10""".stripMargin)
+  }
+
+
+  test("limit and offset") {
+    val query = translator.translate(
+        from(table).limitBy(15, 20)
+      )
+
+      assertEquals(query,
+      """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`, `t`.`age`
+         |FROM `t`
+         |LIMIT 15
+         |OFFSET 20""".stripMargin)
+  }
+
 	
   test("complex") {
     val query = translator.translate(
-        from(table).map{ t => (t.id, t.firstName.concat(t.lastName).as("name")) }
+        from(table).filter{ _.age > 18 }
+                   .map{ t => (t.id, t.firstName.concat(t.lastName).as("name")) }
                    .sortBy{ t => (t.name.asc, t.id.desc) }
+                   .limitBy(5, 10)
       )
 
     assertEquals(query,
       """|SELECT `t`.`id`, CONCAT(`t`.`first_name`, `t`.`last_name`) AS `name`
          |FROM `t`
-         |ORDER BY `name` ASC, `t`.`id` DESC""".stripMargin)
+         |WHERE `t`.`age` > 18
+         |ORDER BY `name` ASC, `t`.`id` DESC
+         |LIMIT 5
+         |OFFSET 10""".stripMargin)
   }

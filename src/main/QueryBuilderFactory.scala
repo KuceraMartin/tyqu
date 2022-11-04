@@ -8,9 +8,9 @@ type ScopeSubtype[T <: Scope] = T
 
 object QueryBuilderFactory:
 
-  transparent inline def create[T <: Tuple](inline schema: T, inline from: String, inline where: Option[Expression[Boolean]], inline orderBy: List[OrderBy]) = ${createImpl('schema, 'from, 'where, 'orderBy)}
+  transparent inline def create[T <: Tuple](inline schema: T, inline from: String, inline where: Option[Expression[Boolean]], inline orderBy: List[OrderBy], inline limit: Option[Int], inline offset: Int) = ${createImpl('schema, 'from, 'where, 'orderBy, 'limit, 'offset)}
 
-  private def createImpl[T <: Tuple](schema: Expr[T], from: Expr[String], where: Expr[Option[Expression[Boolean]]], orderBy: Expr[List[OrderBy]])(using q: Quotes, t: Type[T]) =
+  private def createImpl[T <: Tuple](schema: Expr[T], from: Expr[String], where: Expr[Option[Expression[Boolean]]], orderBy: Expr[List[OrderBy]], limit: Expr[Option[Int]], offset: Expr[Int])(using q: Quotes, t: Type[T]) =
     import quotes.reflect.*
 
     def refine(t: TypeRepr, acc: TypeRepr): TypeRepr =
@@ -28,4 +28,4 @@ object QueryBuilderFactory:
     val refinementType = refine(schema.asTerm.tpe.dealias.widen, TypeRepr.of[Scope])
 
     refinementType.asType match
-      case '[ScopeSubtype[t]] => '{new QueryBuilder(Scope($schema), $from, $where, $orderBy).asInstanceOf[QueryBuilder[t]]}
+      case '[ScopeSubtype[t]] => '{new QueryBuilder(Scope($schema), $from, $where, $orderBy, $limit, $offset).asInstanceOf[QueryBuilder[t]]}
