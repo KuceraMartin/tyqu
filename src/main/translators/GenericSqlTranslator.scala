@@ -1,5 +1,7 @@
 package tyqu.translators
 
+import scala.reflect.TypeTest
+
 import tyqu.platforms.Platform
 import tyqu.*
 
@@ -10,8 +12,10 @@ class GenericSqlTranslator(platform: Platform):
       "SELECT " + qb.scope.toList.map(translateSelectExpression).mkString(", "),
 
       "FROM " + platform.formatIdentifier(qb.from),
-      if (qb.where.isEmpty) null
-      else "WHERE " + qb.where.map(translateExpression).mkString(" AND "),
+
+      qb.where match
+        case Some(expr) => "WHERE " + translateExpression(expr)
+        case None => null,
 
       if (qb.orderBy.isEmpty) null
       else "ORDER BY " + qb.orderBy.map(translateOrderByExpression).mkString(", "),
@@ -25,10 +29,12 @@ class GenericSqlTranslator(platform: Platform):
         f"${translateExpression(expression)} AS ${platform.formatIdentifier(alias)}"
       case _ => translateExpression(select)
 
+
   private def translateOrderByExpression(ord: OrderBy) = ord match
     case Asc(expr) => translateExpression(expr) + " ASC"
     case Desc(expr) => translateExpression(expr) + " DESC"
     case expr: Expression[?] => translateExpression(expr)
+
 
   private def translateExpression(expr: Expression[?]): String = expr match
       case ColumnValue(name, relation) =>
@@ -55,8 +61,41 @@ class GenericSqlTranslator(platform: Platform):
       case NotEqual(lhs, rhs) =>
         f"${translateExpression(lhs)} != ${translateExpression(rhs)}"
 
+      case And(lhs, rhs) =>
+        val List(tl, tr) = List(lhs, rhs).map(wrapInBraces[Or])
+        f"$tl AND $tr"
+
+      case Or(lhs, rhs) =>
+        val List(tl, tr) = List(lhs, rhs).map(wrapInBraces[And])
+        f"$tl OR $tr"
+
+      case Not(expr) =>
+        val tr = wrapInBraces[And | Or](expr)
+        f"NOT $tr"
+
       case Plus(lhs, rhs) =>
         f"${translateExpression(lhs)} + ${translateExpression(rhs)}"
 
+      case Minus(lhs, rhs) =>
+        val tl = translateExpression(lhs)
+        val tr = wrapInBraces[Plus[_] | Minus[_]](rhs)
+        f"$tl - $tr"
+
+      case Multiply(lhs, rhs) =>
+        val List(tl, tr) = List(lhs, rhs).map(wrapInBraces[Plus[_] | Minus[_]])
+        f"$tl * $tr"
+
+      case Divide(lhs, rhs) =>
+        val tl = translateExpression(lhs)
+        val tr = wrapInBraces[Plus[_] | Minus[_] | Multiply[_] | Divide[_]](rhs)
+        f"$tl / $tr"
+
       case Concat(lhs, rhs) =>
         f"CONCAT(${translateExpression(lhs)}, ${translateExpression(rhs)})"
+
+
+  private def wrapInBraces[T](e: Expression[_])(using TypeTest[Expression[_], T]): String =
+    val translated = translateExpression(e)
+    e match
+      case _: T => f"($translated)"
+      case _ => translated

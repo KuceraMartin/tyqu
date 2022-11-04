@@ -5,7 +5,7 @@ import scala.annotation.targetName
 import utils.checkTupleOf
 
 
-case class QueryBuilder[T <: Scope](scope: T, from: String, where: Array[Expression[Boolean]], orderBy: List[OrderBy]):
+case class QueryBuilder[T <: Scope](scope: T, from: String, where: Option[Expression[Boolean]], orderBy: List[OrderBy]):
 
   @targetName("mapToScope")
   def map[T2 <: Scope](fn: T => T2): QueryBuilder[T2] =
@@ -26,7 +26,9 @@ case class QueryBuilder[T <: Scope](scope: T, from: String, where: Array[Express
     map(s => Tuple1(fn(s)))
 
   def filter(predicate: T => Expression[Boolean]): QueryBuilder[T] =
-    new QueryBuilder(scope, from, where :+ predicate(scope), orderBy)
+    val expr = predicate(scope)
+    val newWhere = where.map(_ && expr).getOrElse(expr)
+    new QueryBuilder(scope, from, Some(newWhere), orderBy)
 
   @targetName("sortByWithTuple")
   inline transparent def sortBy(fn: T => Tuple): QueryBuilder[T] =
@@ -55,6 +57,6 @@ transparent inline def from[T <: Tuple](table: Table[T]) =
   QueryBuilderFactory.create(
     columnsToExpressions(table.columns, table),
     table.tableName,
-    Array.empty,
+    None,
     List.empty,
   )

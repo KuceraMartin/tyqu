@@ -8,9 +8,9 @@ type ScopeSubtype[T <: Scope] = T
 
 object QueryBuilderFactory:
 
-  transparent inline def create[T <: Tuple](inline schema: T, inline from: String, inline where: Array[Expression[Boolean]], inline orderBy: List[OrderBy]) = ${createImpl('schema, 'from, 'where, 'orderBy)}
+  transparent inline def create[T <: Tuple](inline schema: T, inline from: String, inline where: Option[Expression[Boolean]], inline orderBy: List[OrderBy]) = ${createImpl('schema, 'from, 'where, 'orderBy)}
 
-  private def createImpl[T <: Tuple](schema: Expr[T], from: Expr[String], where: Expr[Array[Expression[Boolean]]], orderBy: Expr[List[OrderBy]])(using q: Quotes, t: Type[T]) =
+  private def createImpl[T <: Tuple](schema: Expr[T], from: Expr[String], where: Expr[Option[Expression[Boolean]]], orderBy: Expr[List[OrderBy]])(using q: Quotes, t: Type[T]) =
     import quotes.reflect.*
 
     def refine(t: TypeRepr, acc: TypeRepr): TypeRepr =

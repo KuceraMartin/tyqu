@@ -47,6 +47,22 @@ class GenericSqlTranslatorTest extends UnitTest:
   }
 
 
+  test("filter complex") {
+    val query = translator.translate(
+        from(table).filter{ t =>
+          t.age > 18 && !(t.firstName === "John" || t.lastName === "Doe")
+        }
+      )
+
+    assertEquals(
+      query,
+      """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`, `t`.`age`
+         |FROM `t`
+         |WHERE `t`.`age` > 18 AND NOT (`t`.`first_name` = 'John' OR `t`.`last_name` = 'Doe')""".stripMargin,
+    )
+  }
+
+
   test("map to Tuple3") {
     val query = translator.translate(
         from(table).map{ t => (t.id, t.firstName, t.lastName) }
@@ -139,6 +155,19 @@ class GenericSqlTranslatorTest extends UnitTest:
   }
 
 
+  test("map complex") {
+    val query = translator.translate(
+        from(table).map{ t => (1 - (t.id + t.age) * 2).as("n") }
+      )
+
+    assertEquals(
+      query,
+      """|SELECT 1 - (`t`.`id` + `t`.`age`) * 2 AS `n`
+         |FROM `t`""".stripMargin,
+    )
+  }
+
+
   test("order by many columns") {
     val query = translator.translate(
         from(table).sortBy{ t => (Desc(t.lastName), Asc(t.age), Asc(t.id)) }
@@ -160,6 +189,20 @@ class GenericSqlTranslatorTest extends UnitTest:
       """|SELECT `t`.`id`, `t`.`first_name`, `t`.`last_name`, `t`.`age`
          |FROM `t`
          |ORDER BY `t`.`id`""".stripMargin)
+  }
+
+
+  test("sort by something that is not in scope".ignore) {
+    val query = translator.translate(
+        from(table).map{ t => (t.firstName, t.age.as("a")) }
+                   .sortBy(_.a)
+                   .map(_.firstName)
+      )
+
+    assertEquals(query,
+      """|SELECT `t`.`first_name`, `t`.`age` AS a
+         |FROM `t`
+         |ORDER BY `a`""".stripMargin)
   }
 
 	
