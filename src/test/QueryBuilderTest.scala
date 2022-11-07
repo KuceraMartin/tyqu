@@ -5,21 +5,20 @@ class QueryBuilderTest extends UnitTest:
 
   test("filter type mismatch") {
     val code = """
-        val table = Table(
-          tableName = "t",
-          columns = (
-            column[Int]("id"),
-            column[String]("name"),
-          ),
-        )
-        from(table).filter(_.id === "***str$$$")
+        object MyTable extends Table("t"):
+          val id = column[Int]("id")
+          val firstName = column[String]("first_name")
+          val lastName = column[String]("last_name")
+          val age = column[Int]("age")
+
+        from(MyTable).filter(_.id === "***str$$$")
       """
 
     val errors = compileErrors(code)
 
-    assert(List(
+    assertContains(errors,
       "error:",
       "Found:    (\"***str$$$\" : String)",
       "Required: tyqu.Expression[Int]",
-    ).forall(errors.contains))
+    )
   }

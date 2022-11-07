@@ -11,7 +11,7 @@ class GenericSqlTranslator(platform: Platform):
     List(
       Some("SELECT " + qb.scope.toList.map(translateSelectExpression).mkString(", ")),
 
-      Some("FROM " + platform.formatIdentifier(qb.from)),
+      Some("FROM " + platform.formatIdentifier(qb.from._relationName)),
 
       qb.where.map("WHERE " + translateExpression(_)),
 
@@ -41,7 +41,7 @@ class GenericSqlTranslator(platform: Platform):
 
   private def translateExpression(expr: Expression[?]): String = expr match
       case ColumnValue(name, relation) =>
-        platform.formatIdentifier(relation.name) + "." + platform.formatIdentifier(relation.getColumnName(name))
+        platform.formatIdentifier(relation._relationName) + "." + platform.formatIdentifier(relation._getColumnName(name))
 
       case Alias(name, _) =>
         platform.formatIdentifier(name)

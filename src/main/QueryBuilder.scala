@@ -7,7 +7,7 @@ import utils.checkTupleOf
 
 case class QueryBuilder[T <: Scope](
   scope: T,
-  from: String,
+  from: Relation,
   where: Option[Expression[Boolean]] = None,
   orderBy: List[OrderBy] = List.empty,
   limit: Option[Int] = None,
@@ -21,7 +21,7 @@ case class QueryBuilder[T <: Scope](
   @targetName("mapToTuple")
   inline transparent def map[T2 <: Tuple](inline fn: T => T2): QueryBuilder[?] =
     checkTupleOf[NamedExpression[_, _]](fn(scope))
-    QueryBuilderFactory.create(fn(scope), this)
+    QueryBuilderFactory.fromTuple(fn(scope), this)
 
   @targetName("mapToTuple1")
   inline transparent def map[V, T2 <: String & Singleton](inline fn: T => NamedExpression[V, T2]): QueryBuilder[?] =
@@ -46,21 +46,5 @@ case class QueryBuilder[T <: Scope](
 end QueryBuilder
 
 
-type ColumnsToExpressions[T <: Tuple] <: Tuple =
-  T match
-    case EmptyTuple => EmptyTuple
-    case Column[r, n] *: t => ColumnValue[r, n] *: ColumnsToExpressions[t]
-
-
-def columnsToExpressions[T <: Tuple](columns: T, relation: Relation): ColumnsToExpressions[T] =
-  columns match
-    case _: EmptyTuple => EmptyTuple
-    case t: (Column[r, n] *: tailType) =>
-      ColumnValue[r, n](t.head.name, relation) *: columnsToExpressions(t.tail, relation)
-
-
-transparent inline def from[T <: Tuple](table: Table[T]) =
-  QueryBuilderFactory.create(
-    columnsToExpressions(table.columns, table),
-    new QueryBuilder(new Scope(EmptyTuple), table.tableName)
-  )
+transparent inline def from[T <: Table](table: T) =
+  QueryBuilderFactory.fromObject(table)
