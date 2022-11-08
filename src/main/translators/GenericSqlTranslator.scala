@@ -89,6 +89,16 @@ class GenericSqlTranslator(platform: Platform):
       case Sum(expr) =>
         f"SUM(${translateExpression(expr)})"
 
+      case IsNull(expr) =>
+        val tr = translateExpression(expr)
+        f"$expr IS NULL"
+
+      case IsNotNull(expr) =>
+        f"${translateExpression(expr)} IS NOT NULL"
+
+      case GetOrElse(mainExpr, fallbackExpr) =>
+        f"COALESCE(${translateExpression(mainExpr)}, ${translateExpression(fallbackExpr)})"
+
       case Plus(lhs, rhs) =>
         f"${translateExpression(lhs)} + ${translateExpression(rhs)}"
 

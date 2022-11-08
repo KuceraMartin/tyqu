@@ -23,9 +23,8 @@ case class QueryBuilder[+T <: Scope](
     checkTupleOf[NamedExpression[_, _]](fn(scope))
     QueryBuilderFactory.fromTuple(fn(scope), this)
 
-  def filter(predicate: T => Expression[Boolean]): QueryBuilder[T] =
-    val expr = predicate(scope)
-    copy(where = Some(where.map(_ && expr).getOrElse(expr)))
+  inline transparent def filter(inline predicate: T => Expression[Boolean]): QueryBuilder[?] =
+    QueryBuilderFactory.fromFilter(predicate(scope), this)
 
   @targetName("sortByWithTuple")
   inline transparent def sortBy(fn: T => Tuple): QueryBuilder[T] =
