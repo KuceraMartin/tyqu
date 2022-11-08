@@ -23,24 +23,32 @@ object QueryBuilderFactory:
     val (selection, refinementType) =
       fields.foldRight(('{EmptyTuple}: Expr[Tuple], TypeRepr.of[Scope])){ (field, acc) =>
         val (accSelection, accRefinement) = acc
+        val nameTp = ConstantType(StringConstant(field.name))
+        val nameExpr = Expr(field.name)
         field.typeRef.translucentSuperType match
           case AppliedType(TypeRef(TermRef(_, "tyqu"), "Column"), tr :: _) =>
-            val nameTp = ConstantType(StringConstant(field.name))
-            val nameExpr = Expr(field.name)
             val cv = tr.asType match
               case '[t] => nameTp.asType match
                 case '[StringSubtype[n]] =>
-                  '{ColumnValue[t, n]($nameExpr.asInstanceOf[n], $table)}
+                  '{ColumnValue[t, n]($nameExpr.asInstanceOf[n], StoredTable($table))}
+            val tp = Refinement(accRefinement, field.name, cv.asTerm.tpe)
+            ('{$cv *: ${accSelection}}, tp)
+          case TypeRef(TermRef(_, "tyqu"), "ManyToOne") =>
+            val cv = nameTp.asType match
+              case '[StringSubtype[n]] =>
+                '{ColumnValue[t, n]($nameExpr.asInstanceOf[n], StoredTable($table))}
             val tp = Refinement(accRefinement, field.name, cv.asTerm.tpe)
             ('{$cv *: ${accSelection}}, tp)
           case _ =>
+            println(field.typeRef.translucentSuperType)
+            println()
             val tableName = classSymbol.name.stripSuffix("$")
             val tp = field.typeRef.classSymbol.get.fullName
             throw TableDefinitionException(f"Table ${tableName} has property ${field.name} of type $tp which is not an allowed member of a table definition!")
       }
 
     refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ new QueryBuilder(Scope($selection), $table).asInstanceOf[QueryBuilder[t]]}
+      case '[ScopeSubtype[t]] => '{ new QueryBuilder(Scope($selection), StoredTable($table)).asInstanceOf[QueryBuilder[t]]}
 
 
   transparent inline def fromTuple[T <: Tuple](inline selection: T, inline qb: QueryBuilder[_]) = ${fromTupleImpl('selection, 'qb)}

@@ -5,6 +5,11 @@ type Numeric = Int | Long | Float | Double
 type Primitive = Numeric | String | Char | Boolean
 
 
+abstract class Relation
+case class StoredTable(table: Table) extends Relation
+case class JoinedTable(table: Table) extends Relation
+
+
 abstract sealed class Expression[T]:
   def as(n: String) = Alias[T, n.type](n, this)
   def asc = Asc(this)
@@ -15,6 +20,9 @@ abstract sealed class NamedExpression[T, N <: String & Singleton](val alias: N) 
 case class Alias[T, N <: String & Singleton](name: N, expression: Expression[T]) extends NamedExpression[T, N](name)
 
 case class ColumnValue[T, N <: String & Singleton](name: N, relation: Relation) extends NamedExpression[T, N](name)
+
+case class ManyToOneValue[N <: String & Singleton](name: N, relation: Table, target: Table) extends NamedExpression[Int, N](name) with Selectable:
+  def selectDynamic(name: String) = ColumnValue(name, JoinedTable(target))
 
 case class LiteralExpression[T](value: T) extends Expression[T]
 

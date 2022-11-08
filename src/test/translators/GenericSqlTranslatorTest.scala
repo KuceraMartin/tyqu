@@ -6,18 +6,24 @@ import tyqu.translators.GenericSqlTranslator
 
 class GenericSqlTranslatorTest extends UnitTest:
 
-  case object MyTable extends Table:
+  case object People extends Table:
     val id = Column[Int]()
     val firstName = Column[String]()
     val lastName = Column[String]()
     val age = Column[Int]()
+    //val country = ManyToOne(Countries)
+  
+  case object Countries extends Table:
+    val id = Column[Int]()
+    val name = Column[String]()
+
 
   val translator = new GenericSqlTranslator(MySqlPlatform)
 
 
   test("filter ===") {
     val query = translator.translate(
-        from(MyTable).filter(_.id === 1)
+        from(People).filter(_.id === 1)
       )
 
     assertEquals(
@@ -31,7 +37,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("filter =!=") {
     val query = translator.translate(
-        from(MyTable).filter(_.firstName =!= "John")
+        from(People).filter(_.firstName =!= "John")
       )
 
     assertEquals(
@@ -45,7 +51,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("filter complex") {
     val query = translator.translate(
-        from(MyTable).filter{ t =>
+        from(People).filter{ t =>
           t.age > 18 && !(t.firstName === "John" || t.lastName === "Doe")
         }
       )
@@ -61,7 +67,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map to Tuple3") {
     val query = translator.translate(
-        from(MyTable).map{ t => (t.id, t.firstName, t.lastName) }
+        from(People).map{ t => (t.id, t.firstName, t.lastName) }
       )
 
     assertEquals(
@@ -74,7 +80,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map to Tuple2 + Tuple1") {
     val query = translator.translate(
-        from(MyTable).map{ t => (t.id, t.firstName) :* t.lastName }
+        from(People).map{ t => (t.id, t.firstName) :* t.lastName }
       )
     
     assertEquals(
@@ -87,7 +93,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map to Tuple1 + Tuple2") {
     val query = translator.translate(
-        from(MyTable).map{ t => t.id *: (t.firstName, t.lastName) }
+        from(People).map{ t => t.id *: (t.firstName, t.lastName) }
       )
 
     assertEquals(
@@ -100,7 +106,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map to 3 * Tuple1") {
     val query = translator.translate(
-        from(MyTable).map{ t => t.id *: t.firstName *: t.lastName *: EmptyTuple }
+        from(People).map{ t => t.id *: t.firstName *: t.lastName *: EmptyTuple }
       )
 
     assertEquals(
@@ -113,7 +119,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map to Tuple1") {
     val query = translator.translate(
-        from(MyTable).map(_.id)
+        from(People).map(_.id)
       )
 
     assertEquals(
@@ -126,7 +132,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map with alias") {
     val query = translator.translate(
-        from(MyTable).map{ t => (t.id, t.firstName.as("fn"), t.lastName.as("ln")) }
+        from(People).map{ t => (t.id, t.firstName.as("fn"), t.lastName.as("ln")) }
       )
 
     assertEquals(
@@ -139,7 +145,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("renamed columns accessible after map") {
     val query = translator.translate(
-        from(MyTable).map{ t => (t.id, t.firstName.as("fn"), t.lastName.as("ln")) }
+        from(People).map{ t => (t.id, t.firstName.as("fn"), t.lastName.as("ln")) }
                    .map(_.ln)
       )
 
@@ -153,7 +159,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map complex") {
     val query = translator.translate(
-        from(MyTable).map{ t => (1 - (t.id + t.age) * 2).as("n") }
+        from(People).map{ t => (1 - (t.id + t.age) * 2).as("n") }
       )
 
     assertEquals(
@@ -166,7 +172,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("order by many columns") {
     val query = translator.translate(
-        from(MyTable).sortBy{ t => (Desc(t.lastName), Asc(t.age), Asc(t.id)) }
+        from(People).sortBy{ t => (Desc(t.lastName), Asc(t.age), Asc(t.id)) }
       )
 
       assertEquals(query,
@@ -178,7 +184,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("order by one column") {
     val query = translator.translate(
-        from(MyTable).sortBy(_.id)
+        from(People).sortBy(_.id)
       )
 
       assertEquals(query,
@@ -190,7 +196,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("sort by something that is not in scope".ignore) {
     val query = translator.translate(
-        from(MyTable).map{ t => (t.firstName, t.age.as("a")) }
+        from(People).map{ t => (t.firstName, t.age.as("a")) }
                    .sortBy(_.a)
                    .map(_.firstName)
       )
@@ -204,7 +210,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("limit") {
     val query = translator.translate(
-        from(MyTable).limitBy(10)
+        from(People).limitBy(10)
       )
 
       assertEquals(query,
@@ -216,7 +222,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("limit and offset") {
     val query = translator.translate(
-        from(MyTable).limitBy(15, 20)
+        from(People).limitBy(15, 20)
       )
 
       assertEquals(query,
@@ -229,7 +235,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 	
   test("complex") {
     val query = translator.translate(
-        from(MyTable).filter{ _.age > 18 }
+        from(People).filter{ _.age > 18 }
                    .map{ t => (t.id, t.firstName.concat(t.lastName).as("name")) }
                    .sortBy{ t => (t.name.asc, t.id.desc) }
                    .limitBy(5, 10)
