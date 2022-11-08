@@ -1,23 +1,30 @@
-package tyqu
+package tyqu:
+
+  class TableTest extends UnitTest:
+
+    test("columns need to be instances of Column") {
+      val code = """
+          object MyTable extends Table("t"):
+            val id = Column[Int]()
+            val firstName = Column[String]()
+            val someProp = other.Column[Int]("other column")
+
+          from(MyTable)
+        """
+
+      val errors = compileErrors(code)
+
+      assertContains(errors,
+        "Exception occurred while executing macro expansion.",
+        "tyqu.TableDefinitionException: Table MyTable has property someProp of type other.Column which is not an allowed member of a table definition!",
+      )
+    }
+
+end tyqu
 
 
-class TableTest extends UnitTest:
+package other:
 
-  test("columns need to be instances of Column") {
-    val code = """
-        val table = Table(
-          tableName = "t",
-          columns = (
-            column[Int]("id"),
-            column[String]("name"),
-            "not a column"
-          ),
-        )
-      """
+  case class Column[T](name: String)
 
-    val errors = compileErrors(code)
-
-    assert(
-			errors.contains("error: t is not a tuple of S!")
-		)
-  }
+end other

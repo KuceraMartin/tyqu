@@ -12,25 +12,19 @@ def camelToSnakeCase(s: String) =
     .mkString
 
 
-abstract class Relation(val name: String):
-  def getColumnName(property: String) = property
+abstract class Relation(
+  val _getColumnName: String => String = identity,
+):
+  val _relationName: String
 
 
-case class Table[T <: Tuple](
-  tableName: String,
-  columns: T,
-  namingConvention: String => String = camelToSnakeCase,
-) extends Relation(tableName):
-  override def getColumnName(property: String): String = namingConvention(property)
-
-object Table:
-  inline transparent def apply[T <: Tuple](tableName: String, columns: T, namingConvention: String => String = camelToSnakeCase) =
-    checkTupleOf[Column[_, _]](columns)
-    new Table(tableName, columns, namingConvention)
+abstract class Table(
+  translateIdentifier: String => String = camelToSnakeCase,
+) extends Relation(translateIdentifier):
+  val _relationName = translateIdentifier(getClass.getSimpleName.stripSuffix("$"))
 
 
 // , WriteType <: ReadType | Null
-case class Column[ReadType, NameType <: String & Singleton](name: NameType, primary: Boolean = false)
-
-
-def column[T](name: String) = Column[T, name.type](name)
+case class Column[ReadType](
+  primary: Boolean = false,
+)
