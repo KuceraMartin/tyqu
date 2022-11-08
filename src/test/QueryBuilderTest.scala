@@ -6,10 +6,10 @@ class QueryBuilderTest extends UnitTest:
   test("filter type mismatch") {
     val code = """
         object MyTable extends Table("t"):
-          val id = column[Int]("id")
-          val firstName = column[String]("first_name")
-          val lastName = column[String]("last_name")
-          val age = column[Int]("age")
+          val id = Column[Int]()
+          val firstName = Column[String]()
+          val lastName = Column[String]()
+          val age = Column[Int]()
 
         from(MyTable).filter(_.id === "***str$$$")
       """
