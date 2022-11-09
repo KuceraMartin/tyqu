@@ -84,6 +84,21 @@ class GenericSqlTranslator(platform: Platform):
         val tr = wrapInBraces[And | Or](expr)
         f"NOT $tr"
 
+      case CountAll() =>
+        "COUNT(*)"
+
+      case Count(expr) =>
+        f"COUNT(${translateExpression(expr)})"
+
+      case Min(expr) =>
+        f"MIN(${translateExpression(expr)})"
+
+      case Max(expr) =>
+        f"Max(${translateExpression(expr)})"
+
+      case Average(expr) =>
+        f"AVG(${translateExpression(expr)})"
+
       case Plus(lhs, rhs) =>
         f"${translateExpression(lhs)} + ${translateExpression(rhs)}"
 

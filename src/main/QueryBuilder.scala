@@ -39,6 +39,8 @@ case class QueryBuilder[T <: Scope](
   def limitBy(limit: Int, offset: Int = 0): QueryBuilder[T] =
     copy(limit = Some(limit), offset = offset)
 
+  def count = map{ _ => CountAll() }
+
 end QueryBuilder
 
 
