@@ -6,7 +6,7 @@ import scala.quoted.*
 class TableDefinitionException(message: String) extends Exception(message)
 
 
-type ScopeSubtype[T <: Scope] = T
+type ScopeSubtype[T <: TupleScope] = T
 type StringSubtype[T <: String & Singleton] = T
 
 
@@ -21,7 +21,7 @@ object QueryBuilderFactory:
     val fields = classSymbol.declaredFields
 
     val (selection, refinementType) =
-      fields.foldRight(('{EmptyTuple}: Expr[Tuple], TypeRepr.of[Scope])){ (field, acc) =>
+      fields.foldRight(('{EmptyTuple}: Expr[Tuple], TypeRepr.of[TupleScope])){ (field, acc) =>
         val (accSelection, accRefinement) = acc
         field.typeRef.translucentSuperType match
           case AppliedType(TypeRef(TermRef(_, "tyqu"), "Column"), tr :: _) =>
@@ -40,7 +40,7 @@ object QueryBuilderFactory:
       }
 
     refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ new QueryBuilder(Scope($selection), $table).asInstanceOf[QueryBuilder[t]]}
+      case '[ScopeSubtype[t]] => '{ new QueryBuilder(TupleScope($selection), $table).asInstanceOf[QueryBuilder[t]]}
 
 
   transparent inline def fromTuple[T <: Tuple](inline selection: T, inline qb: QueryBuilder[_]) = ${fromTupleImpl('selection, 'qb)}
@@ -60,7 +60,7 @@ object QueryBuilderFactory:
             l.foldLeft(acc) { (acc2, t2) => refine(t2, acc2) }
         case TypeRef(_, _) | TermRef(_, _) => acc
 
-    val refinementType = refine(selection.asTerm.tpe.dealias.widen, TypeRepr.of[Scope])
+    val refinementType = refine(selection.asTerm.tpe.dealias.widen, TypeRepr.of[TupleScope])
 
     refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ $qb.copy(scope = Scope($selection)).asInstanceOf[QueryBuilder[t]]}
+      case '[ScopeSubtype[t]] => '{ $qb.copy(scope = TupleScope($selection)).asInstanceOf[QueryBuilder[t]]}
