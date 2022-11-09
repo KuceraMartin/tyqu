@@ -8,51 +8,36 @@ import tyqu.*
 
 class GenericSqlTranslator(platform: Platform):
 
-  def translate(qb: QueryBuilder[?]): String =
-    List(
-      Some("SELECT " + translateSelectSope(qb.scope)),
+  def translate(qb: QueryBuilder[?], indent: Int = 0): String =
 
-      Some("FROM " + platform.formatIdentifier(qb.from._relationName)),
-
-      qb.where.map("WHERE " + translateExpression(_)),
-
-      if (qb.orderBy.isEmpty) None
-      else Some("ORDER BY " + qb.orderBy.map(translateOrderByExpression).mkString(", ")),
-
-      qb.limit.map("LIMIT " + _),
-
-      if (qb.offset > 0) Some(f"OFFSET ${qb.offset}")
-      else None,
-
-    ).flatten.mkString("\n")
+    def translateSelectSope(scope: Scope) =
+      (scope match
+        case expr: Expression[?] => List(expr)
+        case tuple: TupleScope => tuple.toList
+      ).map(translateSelectExpression).mkString(", ")
 
 
-  private def translateSelectSope(scope: Scope) =
-    (scope match
-      case expr: Expression[?] => List(expr)
-      case tuple: TupleScope => tuple.toList
-    ).map(translateSelectExpression).mkString(", ")
-
-
-  private def translateSelectExpression(select: Expression[?]): String =
-    select match
+    def translateSelectExpression(select: Expression[?]): String = select match
       case Alias(alias, expression) =>
         f"${translateExpression(expression)} AS ${platform.formatIdentifier(alias)}"
       case _ => translateExpression(select)
 
 
-  private def translateOrderByExpression(ord: OrderBy) = ord match
-    case Asc(expr) => translateExpression(expr) + " ASC"
-    case Desc(expr) => translateExpression(expr) + " DESC"
-    case expr: Expression[?] => translateExpression(expr)
+    def translateOrderByExpression(ord: OrderBy) = ord match
+      case Asc(expr) => translateExpression(expr) + " ASC"
+      case Desc(expr) => translateExpression(expr) + " DESC"
+      case expr: Expression[?] => translateExpression(expr)
 
 
-  private def translateExpression(expr: Expression[?]): String = expr match
+    def translateExpression(expr: Expression[?]): String = expr match
       case ColumnValue(name, relation) =>
         platform.formatIdentifier(relation._relationName) + "." + platform.formatIdentifier(relation._getColumnName(name))
 
       case Alias(name, _) =>
         platform.formatIdentifier(name)
+      
+      case SubqueryExpression(qb: QueryBuilder[?]) =>
+        f"(\n${translate(qb, indent + 1)}\n)"
 
       case LiteralExpression(value: Numeric) =>
         value.toString
@@ -120,8 +105,25 @@ class GenericSqlTranslator(platform: Platform):
         f"CONCAT(${translateExpression(lhs)}, ${translateExpression(rhs)})"
 
 
-  private def wrapInBraces[T](e: Expression[_])(using TypeTest[Expression[_], T]): String =
-    val translated = translateExpression(e)
-    e match
-      case _: T => f"($translated)"
-      case _ => translated
+    def wrapInBraces[T](e: Expression[_])(using TypeTest[Expression[_], T]): String =
+      val translated = translateExpression(e)
+      e match
+        case _: T => f"($translated)"
+        case _ => translated
+
+    List(
+      Some("SELECT " + translateSelectSope(qb.scope)),
+
+      Some("FROM " + platform.formatIdentifier(qb.from._relationName)),
+
+      qb.where.map("WHERE " + translateExpression(_)),
+
+      if (qb.orderBy.isEmpty) None
+      else Some("ORDER BY " + qb.orderBy.map(translateOrderByExpression).mkString(", ")),
+
+      qb.limit.map("LIMIT " + _),
+
+      if (qb.offset > 0) Some(f"OFFSET ${qb.offset}")
+      else None,
+
+    ).flatten.map("  " * indent + _).mkString("\n")
