@@ -28,6 +28,8 @@ case class Alias[T, N <: String & Singleton](name: N, expression: Expression[T])
 
 case class ColumnValue[T, N <: String & Singleton](name: N, relation: Relation) extends NamedExpression[T, N](name)
 
+case class SubqueryExpression[T](qb: QueryBuilder[Expression[T]]) extends Expression[T]
+
 case class LiteralExpression[T](value: T) extends Expression[T]
 
 def lit[T](value: T) = LiteralExpression(value)
@@ -78,6 +80,7 @@ extension [T <: Numeric](lhs: Expression[T]) {
 
 given Conversion[String, Expression[String]] = LiteralExpression(_)
 given Conversion[Int, Expression[Int]] = LiteralExpression(_)
+given [T]: Conversion[QueryBuilder[Expression[T]], Expression[T]] = SubqueryExpression(_)
 
 
 object NoFilterExpression extends LiteralExpression(true)

@@ -5,7 +5,7 @@ import scala.annotation.targetName
 import utils.checkTupleOf
 
 
-case class QueryBuilder[T <: Scope](
+case class QueryBuilder[+T <: Scope](
   scope: T,
   from: Relation,
   where: Option[Expression[Boolean]] = None,
