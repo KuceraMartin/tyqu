@@ -5,11 +5,12 @@ import scala.reflect.TypeTest
 import tyqu.platforms.Platform
 import tyqu.*
 
+
 class GenericSqlTranslator(platform: Platform):
 
   def translate(qb: QueryBuilder[?]): String =
     List(
-      Some("SELECT " + qb.scope.toList.map(translateSelectExpression).mkString(", ")),
+      Some("SELECT " + translateSelectSope(qb.scope)),
 
       Some("FROM " + platform.formatIdentifier(qb.from._relationName)),
 
@@ -24,6 +25,13 @@ class GenericSqlTranslator(platform: Platform):
       else None,
 
     ).flatten.mkString("\n")
+
+
+  private def translateSelectSope(scope: Scope) =
+    (scope match
+      case expr: Expression[?] => List(expr)
+      case tuple: TupleScope => tuple.toList
+    ).map(translateSelectExpression).mkString(", ")
 
 
   private def translateSelectExpression(select: Expression[?]): String =
@@ -75,6 +83,21 @@ class GenericSqlTranslator(platform: Platform):
       case Not(expr) =>
         val tr = wrapInBraces[And | Or](expr)
         f"NOT $tr"
+
+      case CountAll() =>
+        "COUNT(*)"
+
+      case Count(expr) =>
+        f"COUNT(${translateExpression(expr)})"
+
+      case Min(expr) =>
+        f"MIN(${translateExpression(expr)})"
+
+      case Max(expr) =>
+        f"Max(${translateExpression(expr)})"
+
+      case Average(expr) =>
+        f"AVG(${translateExpression(expr)})"
 
       case Plus(lhs, rhs) =>
         f"${translateExpression(lhs)} + ${translateExpression(rhs)}"

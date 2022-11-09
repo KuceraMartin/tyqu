@@ -1,6 +1,8 @@
 package tyqu
 
-class Scope(items: Tuple) extends Selectable:
+type Scope = TupleScope | Expression[_]
+
+class TupleScope(items: Tuple) extends Selectable:
   val toList = items.productIterator.toList.asInstanceOf[List[NamedExpression[?, ?]]]
 
   private val columns = toList.map{ expr => (expr.alias, expr) }.toMap

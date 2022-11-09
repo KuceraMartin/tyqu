@@ -23,10 +23,6 @@ case class QueryBuilder[T <: Scope](
     checkTupleOf[NamedExpression[_, _]](fn(scope))
     QueryBuilderFactory.fromTuple(fn(scope), this)
 
-  @targetName("mapToTuple1")
-  inline transparent def map[V, T2 <: String & Singleton](inline fn: T => NamedExpression[V, T2]): QueryBuilder[?] =
-    map(s => Tuple1(fn(s)))
-
   def filter(predicate: T => Expression[Boolean]): QueryBuilder[T] =
     val expr = predicate(scope)
     copy(where = Some(where.map(_ && expr).getOrElse(expr)))
@@ -42,6 +38,8 @@ case class QueryBuilder[T <: Scope](
 
   def limitBy(limit: Int, offset: Int = 0): QueryBuilder[T] =
     copy(limit = Some(limit), offset = offset)
+
+  def count = map{ _ => CountAll() }
 
 end QueryBuilder
 

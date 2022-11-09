@@ -1,7 +1,7 @@
-package tyqu
+package tyqu.translators
 
 import tyqu.platforms.MySqlPlatform
-import tyqu.translators.GenericSqlTranslator
+import tyqu.{*, given}
 
 
 class GenericSqlTranslatorTest extends UnitTest:
@@ -113,12 +113,12 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map to Tuple1") {
     val query = translator.translate(
-        from(MyTable).map(_.id)
+        from(MyTable).map(_.age + 2)
       )
 
     assertEquals(
       query,
-      """|SELECT `my_table`.`id`
+      """|SELECT `my_table`.`age` + 2
          |FROM `my_table`""".stripMargin,
     )
   }
