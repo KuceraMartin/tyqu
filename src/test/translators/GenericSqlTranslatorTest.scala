@@ -1,7 +1,7 @@
-package tyqu
+package tyqu.translators
 
 import tyqu.platforms.MySqlPlatform
-import tyqu.translators.GenericSqlTranslator
+import tyqu.{*, given}
 
 
 class GenericSqlTranslatorTest extends UnitTest:
