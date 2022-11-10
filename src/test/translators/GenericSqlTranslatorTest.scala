@@ -22,7 +22,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
     assertEquals(
       query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+      """|SELECT `my_table`.*
          |FROM `my_table`
          |WHERE `my_table`.`id` = 1""".stripMargin
     )
@@ -36,7 +36,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
     assertEquals(
       query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+      """|SELECT `my_table`.*
          |FROM `my_table`
          |WHERE `my_table`.`first_name` != 'John'""".stripMargin,
     )
@@ -52,7 +52,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
     assertEquals(
       query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+      """|SELECT `my_table`.*
          |FROM `my_table`
          |WHERE `my_table`.`age` > 18 AND NOT (`my_table`.`first_name` = 'John' OR `my_table`.`last_name` = 'Doe')""".stripMargin,
     )
@@ -170,7 +170,7 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
       assertEquals(query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+      """|SELECT `my_table`.*
          |FROM `my_table`
          |ORDER BY `my_table`.`last_name` DESC, `my_table`.`age` ASC, `my_table`.`id` ASC""".stripMargin)
   }
@@ -182,7 +182,7 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
       assertEquals(query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+      """|SELECT `my_table`.*
          |FROM `my_table`
          |ORDER BY `my_table`.`id`""".stripMargin)
   }
@@ -208,7 +208,7 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
       assertEquals(query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+      """|SELECT `my_table`.*
          |FROM `my_table`
          |LIMIT 10""".stripMargin)
   }
@@ -220,7 +220,7 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
       assertEquals(query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+      """|SELECT `my_table`.*
          |FROM `my_table`
          |LIMIT 15
          |OFFSET 20""".stripMargin)

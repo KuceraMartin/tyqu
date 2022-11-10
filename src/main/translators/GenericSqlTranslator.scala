@@ -12,9 +12,11 @@ class GenericSqlTranslator(platform: Platform):
 
     def translateSelectSope(scope: Scope) =
       (scope match
-        case expr: Expression[?] => List(expr)
-        case tuple: TupleScope => tuple.toList
-      ).map(translateSelectExpression).mkString(", ")
+        case expr: Expression[?] => translateSelectExpression(expr)
+        case tuple: TupleScope =>
+          if (tuple._isSelectStar) f"${platform.formatIdentifier(qb.from._relationName)}.*"
+          else tuple._toList.map(translateSelectExpression).mkString(", ")
+      )
 
 
     def translateSelectExpression(select: Expression[?]): String = select match

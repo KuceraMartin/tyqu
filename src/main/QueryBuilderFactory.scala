@@ -40,7 +40,7 @@ object QueryBuilderFactory:
       }
 
     refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ new QueryBuilder(TupleScope($selection), $table).asInstanceOf[QueryBuilder[t]]}
+      case '[ScopeSubtype[t]] => '{ new QueryBuilder(TupleScope($selection, isSelectStar = true), $table).asInstanceOf[QueryBuilder[t]]}
 
 
   transparent inline def fromTuple[T <: Tuple](inline selection: T, inline qb: QueryBuilder[_]) = ${fromTupleImpl('selection, 'qb)}
