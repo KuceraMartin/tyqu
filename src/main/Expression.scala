@@ -48,6 +48,7 @@ case class Count(expr: Expression[_]) extends Expression[Int]
 case class Min(expr: Expression[_]) extends Expression[Int]
 case class Max(expr: Expression[_]) extends Expression[Int]
 case class Average(expr: Expression[_]) extends Expression[Int]
+case class Sum(expr: Expression[_]) extends Expression[Int]
 
 case class Plus[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
 case class Minus[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
@@ -76,6 +77,7 @@ extension [T <: Numeric](lhs: Expression[T]) {
   def min = Min(lhs)
   def max = Max(lhs)
   def avg = Average(lhs)
+  def sum = Sum(lhs)
 }
 
 given Conversion[String, Expression[String]] = LiteralExpression(_)

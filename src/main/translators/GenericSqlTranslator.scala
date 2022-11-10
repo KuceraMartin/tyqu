@@ -86,6 +86,9 @@ class GenericSqlTranslator(platform: Platform):
       case Average(expr) =>
         f"AVG(${translateExpression(expr)})"
 
+      case Sum(expr) =>
+        f"SUM(${translateExpression(expr)})"
+
       case Plus(lhs, rhs) =>
         f"${translateExpression(lhs)} + ${translateExpression(rhs)}"
 
