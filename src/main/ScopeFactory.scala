@@ -35,6 +35,17 @@ object ScopeFactory:
       case '[ScopeSubtype[t]] => '{ TupleScope($expression *: $scope._items, isSelectStar = false).asInstanceOf[t] }
 
 
+  transparent inline def concatRight[S <: TupleScope, T <: Tuple](inline scope: S, inline tuple: T) = ${concatRightImpl('scope, 'tuple)}
+
+  private def concatRightImpl[S <: TupleScope, T <: Tuple](scope: Expr[S], tuple: Expr[T])(using q: Quotes, s: Type[S], t: Type[T]) =
+    import quotes.reflect.*
+
+    val refinementType = refine(scope, tuple)
+
+    refinementType.asType match
+      case '[ScopeSubtype[t]] => '{ TupleScope($scope._items ++ $tuple, isSelectStar = false).asInstanceOf[t] }
+
+
   def refine[S <: TupleScope, T <: Tuple](scope: Expr[S], selection: Expr[T])(using q: Quotes) =
     import quotes.reflect.*
 

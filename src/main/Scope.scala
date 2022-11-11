@@ -1,6 +1,10 @@
 package tyqu
 
+import utils.checkTupleOf
+
+
 type Scope = TupleScope | Expression[_]
+
 
 class TupleScope(
   val _items: Tuple,
@@ -17,6 +21,10 @@ class TupleScope(
 
   transparent inline infix def :*(expr: NamedExpression[_, _]) =
     ScopeFactory.append(this, expr)
+
+  transparent inline infix def ++[T <: Tuple](tuple: T): TupleScope =
+    checkTupleOf[NamedExpression[_, _]](tuple)
+    ScopeFactory.concatRight(this, tuple)
 
 end TupleScope
 
