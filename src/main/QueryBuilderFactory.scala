@@ -49,8 +49,8 @@ object QueryBuilderFactory:
     import quotes.reflect.*
 
     def refine(t: TypeRepr, acc: TypeRepr): TypeRepr =
-      t match
-        case AppliedType(_, lst) => lst match
+      t.widen match
+        case AppliedType(_, lst) => lst match // _ = TypeRef(_, "*:")
           case List(TypeRef(_, _), ConstantType(name)) =>
             Refinement(acc, name.value.asInstanceOf[String], t)
           case List(head, tail) => head match
@@ -60,7 +60,7 @@ object QueryBuilderFactory:
             l.foldLeft(acc) { (acc2, t2) => refine(t2, acc2) }
         case TypeRef(_, _) | TermRef(_, _) => acc
 
-    val refinementType = refine(selection.asTerm.tpe.dealias.widen, TypeRepr.of[TupleScope])
+    val refinementType = refine(selection.asTerm.tpe.dealias, TypeRepr.of[TupleScope])
 
     refinementType.asType match
       case '[ScopeSubtype[t]] => '{ $qb.copy(scope = TupleScope($selection)).asInstanceOf[QueryBuilder[t]]}

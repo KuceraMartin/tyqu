@@ -72,7 +72,7 @@ class GenericSqlTranslatorTest extends UnitTest:
   }
 
 
-  test("map to Tuple2 + Tuple1") {
+  test("map to Tuple2 :* Expression") {
     val query = translator.translate(
         from(MyTable).map{ t => (t.id, t.firstName) :* t.lastName }
       )
@@ -85,7 +85,7 @@ class GenericSqlTranslatorTest extends UnitTest:
   }
 
 
-  test("map to Tuple1 + Tuple2") {
+  test("map to Expression *: Tuple2") {
     val query = translator.translate(
         from(MyTable).map{ t => t.id *: (t.firstName, t.lastName) }
       )
@@ -111,7 +111,20 @@ class GenericSqlTranslatorTest extends UnitTest:
   }
 
 
-  test("map to Tuple1") {
+  test("map to Tuple2 ++ Tuple2") {
+    val query = translator.translate(
+        from(MyTable).map{ t => (t.id, t.firstName) ++ (t.lastName, t.age) }
+      )
+
+    assertEquals(
+      query,
+      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+         |FROM `my_table`""".stripMargin,
+    )
+  }
+
+
+  test("map to Expression") {
     val query = translator.translate(
         from(MyTable).map(_.age.sum)
       )
