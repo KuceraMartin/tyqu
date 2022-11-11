@@ -33,3 +33,10 @@ extension (lhs: NamedExpression[_, _]) {
   transparent inline infix def *:[S <: TupleScope](scope: S) =
     ScopeFactory.prepend(lhs, scope)
 }
+
+
+extension [T <: Tuple](lhs: T) {
+  transparent inline infix def ++[S <: TupleScope](scope: S) =
+    checkTupleOf[NamedExpression[_, _]](lhs)
+    ScopeFactory.concatLeft(lhs, scope)
+}
