@@ -17,3 +17,11 @@ class TupleScope(
 
   transparent inline infix def :*(expr: NamedExpression[_, _]) =
     ScopeFactory.append(this, expr)
+
+end TupleScope
+
+
+extension (lhs: NamedExpression[_, _]) {
+  transparent inline infix def *:[S <: TupleScope](scope: S) =
+    ScopeFactory.prepend(lhs, scope)
+}
