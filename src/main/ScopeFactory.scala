@@ -33,3 +33,21 @@ object ScopeFactory:
 
     refinementType.asType match
       case '[ScopeSubtype[t]] => '{ TupleScope($expression *: $scope._items, isSelectStar = false).asInstanceOf[t] }
+
+
+  def refine[S <: TupleScope, T <: Tuple](scope: Expr[S], selection: Expr[T])(using q: Quotes) =
+    import quotes.reflect.*
+
+    def inner(t: TypeRepr, acc: TypeRepr): TypeRepr =
+      t.widen match
+        case AppliedType(_, lst) => lst match // _ = TypeRef(_, "*:")
+          case List(TypeRef(_, _), ConstantType(name)) =>
+            Refinement(acc, name.value.asInstanceOf[String], t)
+          case List(head, tail) => head match
+            case AppliedType(_, List(_, ConstantType(name))) =>
+              inner(tail, Refinement(acc, name.value.asInstanceOf[String], head))
+          case l: List[AppliedType] =>
+            l.foldLeft(acc) { (acc2, t2) => inner(t2, acc2) }
+        case TypeRef(_, _) | TermRef(_, _) => acc
+
+    inner(selection.asTerm.tpe.dealias, scope.asTerm.tpe.dealias)
