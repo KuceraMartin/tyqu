@@ -124,48 +124,48 @@ class GenericSqlTranslatorTest extends UnitTest:
   }
 
 
-  test("map to Scope :* Expression") {
-    val query = translator.translate(
-        from(MyTable).map{ t => t :* (2 * t.age).as("doubleAge") }
-      )
+  // test("map to Scope :* Expression") {
+  //   val query = translator.translate(
+  //       from(MyTable).map{ t => t :* (2 * t.age).as("doubleAge") }
+  //     )
 
-    assertEquals(query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`, 2 * `my_table`.`age` AS `doubleAge`
-         |FROM `my_table`""".stripMargin)
-  }
-
-
-  test("map to Expression *: Scope") {
-    val query = translator.translate(
-        from(MyTable).map{ t => (2 * t.age).as("doubleAge") *: t }
-      )
-
-    assertEquals(query,
-      """|SELECT 2 * `my_table`.`age` AS `doubleAge`, `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
-         |FROM `my_table`""".stripMargin)
-  }
+  //   assertEquals(query,
+  //     """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`, 2 * `my_table`.`age` AS `doubleAge`
+  //        |FROM `my_table`""".stripMargin)
+  // }
 
 
-  test("map to Scope ++ Tuple") {
-    val query = translator.translate(
-        from(MyTable).map{ t => t ++ (t.id.as("id2"), t.firstName.as("fn2")) }
-      )
+  // test("map to Expression *: Scope") {
+  //   val query = translator.translate(
+  //       from(MyTable).map{ t => (2 * t.age).as("doubleAge") *: t }
+  //     )
 
-    assertEquals(query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`, `my_table`.`id` AS `id2`, `my_table`.`first_name` AS `fn2`
-         |FROM `my_table`""".stripMargin)
-  }
+  //   assertEquals(query,
+  //     """|SELECT 2 * `my_table`.`age` AS `doubleAge`, `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+  //        |FROM `my_table`""".stripMargin)
+  // }
 
 
-  test("map to Tuple ++ Scope") {
-    val query = translator.translate(
-        from(MyTable).map{ t => (t.id.as("id2"), t.firstName.as("fn2")) ++ t }
-      )
+  // test("map to Scope ++ Tuple") {
+  //   val query = translator.translate(
+  //       from(MyTable).map{ t => t ++ (t.id.as("id2"), t.firstName.as("fn2")) }
+  //     )
 
-    assertEquals(query,
-      """|SELECT `my_table`.`id` AS `id2`, `my_table`.`first_name` AS `fn2`, `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
-         |FROM `my_table`""".stripMargin)
-  }
+  //   assertEquals(query,
+  //     """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`, `my_table`.`id` AS `id2`, `my_table`.`first_name` AS `fn2`
+  //        |FROM `my_table`""".stripMargin)
+  // }
+
+
+  // test("map to Tuple ++ Scope") {
+  //   val query = translator.translate(
+  //       from(MyTable).map{ t => (t.id.as("id2"), t.firstName.as("fn2")) ++ t }
+  //     )
+
+  //   assertEquals(query,
+  //     """|SELECT `my_table`.`id` AS `id2`, `my_table`.`first_name` AS `fn2`, `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+  //        |FROM `my_table`""".stripMargin)
+  // }
 
 
   test("map to Expression") {

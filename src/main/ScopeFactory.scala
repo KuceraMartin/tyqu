@@ -17,44 +17,44 @@ object ScopeFactory:
         Refinement(originalType, name.value.asInstanceOf[String], expressionType)
     
     refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ TupleScope($scope._items :* $expression, isSelectStar = false).asInstanceOf[t] }
+      case '[ScopeSubtype[t]] => '{ TupleScope($scope._items :* ($expression.alias -> (() => $expression)), isSelectStar = false).asInstanceOf[t] }
 
 
-  transparent inline def prepend[T <: TupleScope](inline expression: NamedExpression[_, _], inline scope: T) = ${prependImpl('expression, 'scope)}
+  // transparent inline def prepend[T <: TupleScope](inline expression: NamedExpression[_, _], inline scope: T) = ${prependImpl('expression, 'scope)}
 
-  private def prependImpl[T <: TupleScope](expression: Expr[NamedExpression[_, _]], scope: Expr[T])(using q: Quotes, t: Type[T]) =
-    import quotes.reflect.*
+  // private def prependImpl[T <: TupleScope](expression: Expr[NamedExpression[_, _]], scope: Expr[T])(using q: Quotes, t: Type[T]) =
+  //   import quotes.reflect.*
 
-    val originalType = scope.asTerm.tpe.dealias.widen
-    val expressionType = expression.asTerm.tpe.dealias.widen
-    val refinementType = expressionType match
-      case AppliedType(_, List(_, ConstantType(name))) =>
-        Refinement(originalType, name.value.asInstanceOf[String], expressionType)
+  //   val originalType = scope.asTerm.tpe.dealias.widen
+  //   val expressionType = expression.asTerm.tpe.dealias.widen
+  //   val refinementType = expressionType match
+  //     case AppliedType(_, List(_, ConstantType(name))) =>
+  //       Refinement(originalType, name.value.asInstanceOf[String], expressionType)
 
-    refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ TupleScope($expression *: $scope._items, isSelectStar = false).asInstanceOf[t] }
-
-
-  transparent inline def concatRight[S <: TupleScope, T <: Tuple](inline scope: S, inline tuple: T) = ${concatRightImpl('scope, 'tuple)}
-
-  private def concatRightImpl[S <: TupleScope, T <: Tuple](scope: Expr[S], tuple: Expr[T])(using q: Quotes, s: Type[S], t: Type[T]) =
-    import quotes.reflect.*
-
-    val refinementType = refine(scope, tuple)
-
-    refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ TupleScope($scope._items ++ $tuple, isSelectStar = false).asInstanceOf[t] }
+  //   refinementType.asType match
+  //     case '[ScopeSubtype[t]] => '{ TupleScope($expression *: $scope._items, isSelectStar = false).asInstanceOf[t] }
 
 
-  transparent inline def concatLeft[T <: Tuple, S <: TupleScope](inline tuple: T, inline scope: S) = ${concatLeftImpl('tuple, 'scope)}
+  // transparent inline def concatRight[S <: TupleScope, T <: Tuple](inline scope: S, inline tuple: T) = ${concatRightImpl('scope, 'tuple)}
 
-  private def concatLeftImpl[T <: Tuple, S <: TupleScope](tuple: Expr[T], scope: Expr[S])(using q: Quotes, s: Type[S], t: Type[T]) =
-    import quotes.reflect.*
+  // private def concatRightImpl[S <: TupleScope, T <: Tuple](scope: Expr[S], tuple: Expr[T])(using q: Quotes, s: Type[S], t: Type[T]) =
+  //   import quotes.reflect.*
 
-    val refinementType = refine(scope, tuple)
+  //   val refinementType = refine(scope, tuple)
 
-    refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ TupleScope($tuple ++ $scope._items, isSelectStar = false).asInstanceOf[t] }
+  //   refinementType.asType match
+  //     case '[ScopeSubtype[t]] => '{ TupleScope($scope._items ++ $tuple, isSelectStar = false).asInstanceOf[t] }
+
+
+  // transparent inline def concatLeft[T <: Tuple, S <: TupleScope](inline tuple: T, inline scope: S) = ${concatLeftImpl('tuple, 'scope)}
+
+  // private def concatLeftImpl[T <: Tuple, S <: TupleScope](tuple: Expr[T], scope: Expr[S])(using q: Quotes, s: Type[S], t: Type[T]) =
+  //   import quotes.reflect.*
+
+  //   val refinementType = refine(scope, tuple)
+
+  //   refinementType.asType match
+  //     case '[ScopeSubtype[t]] => '{ TupleScope($tuple ++ $scope._items, isSelectStar = false).asInstanceOf[t] }
 
 
   def refine[S <: TupleScope, T <: Tuple](scope: Expr[S], selection: Expr[T])(using q: Quotes) =
