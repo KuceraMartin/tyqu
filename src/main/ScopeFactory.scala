@@ -12,12 +12,28 @@ object ScopeFactory:
 
     val originalType = scope.asTerm.tpe.dealias.widen
     val expressionType = expression.asTerm.tpe.dealias.widen
-    val refinementType = expressionType match
-      case AppliedType(_, List(_, ConstantType(name))) =>
-        Refinement(originalType, name.value.asInstanceOf[String], expressionType)
+    val name =
+      val ConstantType(constant) = expressionType
+                                .baseType(Symbol.classSymbol("tyqu.NamedExpression"))
+                                .typeArgs(1): @unchecked
+      constant.value.asInstanceOf[String]
+
+    def replaceRefinement(original: TypeRepr, name: String, newValue: TypeRepr): (TypeRepr, Boolean) =
+      original match
+        case Refinement(obj, k, value) =>
+          if (k == name) (Refinement(obj, k, newValue), true)
+          else
+            val (inner, didReplace) = replaceRefinement(obj, name, newValue)
+            (Refinement(inner, k, value), didReplace)
+        case _ => (original, false)
+
+    val (refinementType, didReplace) = replaceRefinement(originalType, name, expressionType)
+    val newItems =
+      if (didReplace) '{ replace($scope._items, ${Expr(name)}, $expression) }
+      else '{ $scope._items :* $expression }
     
     refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ TupleScope($scope._items :* $expression, isSelectStar = false).asInstanceOf[t] }
+      case '[ScopeSubtype[t]] => '{ TupleScope($newItems, isSelectStar = false).asInstanceOf[t] }
 
 
   transparent inline def prepend[T <: TupleScope](inline expression: NamedExpression[_, _], inline scope: T) = ${prependImpl('expression, 'scope)}
@@ -73,3 +89,10 @@ object ScopeFactory:
         case TypeRef(_, _) | TermRef(_, _) => acc
 
     inner(selection.asTerm.tpe.dealias, scope.asTerm.tpe.dealias)
+
+
+  def replace(columns: Tuple, name: String, replacement: Expression[_]): Tuple =
+    columns match
+      case EmptyTuple => EmptyTuple
+      case (h: NamedExpression[_, _]) *: t =>
+        (if (h.alias == name) replacement else h) *: replace(t, name, replacement)
