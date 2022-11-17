@@ -210,12 +210,12 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map complex") {
     val query = translator.translate(
-        from(MyTable).map{ t => (1 - (t.id + t.age) * 2).as("n") }
+        from(MyTable).map{ t => (1 - (t.id + t.age) * (2 * t.id)).as("n") }
       )
 
     assertEquals(
       query,
-      """|SELECT 1 - (`my_table`.`id` + `my_table`.`age`) * 2 AS `n`
+      """|SELECT 1 - (`my_table`.`id` + `my_table`.`age`) * (2 * `my_table`.`id`) AS `n`
          |FROM `my_table`""".stripMargin,
     )
   }
@@ -286,16 +286,16 @@ class GenericSqlTranslatorTest extends UnitTest:
 	
   test("complex") {
     val query = translator.translate(
-        from(MyTable).filter{ _.age > 18 }
-                   .map{ t => (t.id, t.firstName.concat(t.lastName).as("name")) }
+        from(MyTable).filter{ _.age >= 18 }
+                   .map{ t => (t.id, (t.firstName + " " + t.lastName).as("name")) }
                    .sortBy{ t => (t.name.asc, t.id.desc) }
                    .limitBy(5, 10)
       )
 
     assertEquals(query,
-      """|SELECT `my_table`.`id`, CONCAT(`my_table`.`first_name`, `my_table`.`last_name`) AS `name`
+      """|SELECT `my_table`.`id`, CONCAT(`my_table`.`first_name`, ' ', `my_table`.`last_name`) AS `name`
          |FROM `my_table`
-         |WHERE `my_table`.`age` > 18
+         |WHERE `my_table`.`age` >= 18
          |ORDER BY `name` ASC, `my_table`.`id` DESC
          |LIMIT 5
          |OFFSET 10""".stripMargin)

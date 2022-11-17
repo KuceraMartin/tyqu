@@ -47,50 +47,27 @@ class GenericSqlTranslator(platform: Platform):
       case LiteralExpression(value) =>
         f"'${value.toString}'"
 
-      case LessThan(lhs, rhs) =>
-        f"${translateExpression(lhs)} < ${translateExpression(rhs)}"
-
-      case GreaterThan(lhs, rhs) =>
-        f"${translateExpression(lhs)} > ${translateExpression(rhs)}"
-
-      case Equal(lhs, rhs) =>
-        f"${translateExpression(lhs)} = ${translateExpression(rhs)}"
-
-      case NotEqual(lhs, rhs) =>
-        f"${translateExpression(lhs)} != ${translateExpression(rhs)}"
-
       case And(lhs, rhs) =>
-        val List(tl, tr) = List(lhs, rhs).map(wrapInBraces[Or])
+        val tl = wrapInBraces[Or](lhs)
+        val tr = wrapInBraces[And | Or](rhs)
         f"$tl AND $tr"
 
       case Or(lhs, rhs) =>
-        val List(tl, tr) = List(lhs, rhs).map(wrapInBraces[And])
+        val tl = wrapInBraces[And](lhs)
+        val tr = wrapInBraces[And | Or](rhs)
         f"$tl OR $tr"
 
       case Not(expr) =>
-        val tr = wrapInBraces[And | Or](expr)
+        val tr = wrapInBraces[And | Or | Not](expr)
         f"NOT $tr"
 
       case CountAll() =>
         "COUNT(*)"
 
-      case Count(expr) =>
-        f"COUNT(${translateExpression(expr)})"
-
-      case Min(expr) =>
-        f"MIN(${translateExpression(expr)})"
-
-      case Max(expr) =>
-        f"Max(${translateExpression(expr)})"
-
-      case Average(expr) =>
-        f"AVG(${translateExpression(expr)})"
-
-      case Sum(expr) =>
-        f"SUM(${translateExpression(expr)})"
-
       case Plus(lhs, rhs) =>
-        f"${translateExpression(lhs)} + ${translateExpression(rhs)}"
+        val tl = translateExpression(lhs)
+        var tr = wrapInBraces[Plus[_] | Minus[_]](rhs)
+        f"${tl} + ${tr}"
 
       case Minus(lhs, rhs) =>
         val tl = translateExpression(lhs)
@@ -98,7 +75,8 @@ class GenericSqlTranslator(platform: Platform):
         f"$tl - $tr"
 
       case Multiply(lhs, rhs) =>
-        val List(tl, tr) = List(lhs, rhs).map(wrapInBraces[Plus[_] | Minus[_]])
+        val tl = wrapInBraces[Plus[_] | Minus[_]](lhs)
+        val tr = wrapInBraces[Plus[_] | Minus[_] | Multiply[_] | Divide[_]](rhs)
         f"$tl * $tr"
 
       case Divide(lhs, rhs) =>
@@ -106,8 +84,11 @@ class GenericSqlTranslator(platform: Platform):
         val tr = wrapInBraces[Plus[_] | Minus[_] | Multiply[_] | Divide[_]](rhs)
         f"$tl / $tr"
 
-      case Concat(lhs, rhs) =>
-        f"CONCAT(${translateExpression(lhs)}, ${translateExpression(rhs)})"
+      case Function(name, List(arg1, arg2)) if (platform.isInfixOperator(name)) =>
+        f"${translateExpression(arg1)} $name ${translateExpression(arg2)}"
+
+      case Function(name, lst) =>
+        f"$name(${lst.map(translateExpression).mkString(", ")})"
 
 
     def wrapInBraces[T](e: Expression[_])(using TypeTest[Expression[_], T]): String =

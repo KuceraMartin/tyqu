@@ -12,12 +12,16 @@ abstract sealed class Expression[T]:
   def asc = Asc(this)
   def desc = Desc(this)
 
-  infix def ===(rhs: Expression[T]) = Equal(this, rhs)
-  infix def =!=(rhs: Expression[T]) = NotEqual(this, rhs)
+  infix def ===(rhs: Expression[T]) = Function[Boolean]("=", List(this, rhs))
+  infix def =!=(rhs: Expression[T]) = Function[Boolean]("!=", List(this, rhs))
 
-  def concat(rhs: Expression[?]) = Concat(this, rhs)
+  def concat(rhs: Expression[_]) =
+    Function[String]("CONCAT", List(this, rhs).flatMap{
+      case Function("CONCAT", exprs) => exprs
+      case expr => List(expr)
+    })
 
-  def count = Count(this)
+  def count = Function[Int]("COUNT", List(this))
 
 end Expression
 
@@ -32,30 +36,21 @@ case class SubqueryExpression[T](qb: QueryBuilder[Expression[T]]) extends Expres
 
 case class LiteralExpression[T](value: T) extends Expression[T]
 
+case class Function[T](name: String, arguments: List[Expression[_]]) extends Expression[T]
+
 def lit[T](value: T) = LiteralExpression(value)
 
-case class LessThan[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[Boolean]
-case class GreaterThan[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[Boolean]
-case class Equal[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[Boolean]
-case class NotEqual[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[Boolean]
 
 case class And(lhs: Expression[Boolean], rhs: Expression[Boolean]) extends Expression[Boolean]
 case class Or(lhs: Expression[Boolean], rhs: Expression[Boolean]) extends Expression[Boolean]
 case class Not(expression: Expression[Boolean]) extends Expression[Boolean]
 
 case class CountAll() extends Expression[Int]
-case class Count(expr: Expression[_]) extends Expression[Int]
-case class Min(expr: Expression[_]) extends Expression[Int]
-case class Max(expr: Expression[_]) extends Expression[Int]
-case class Average(expr: Expression[_]) extends Expression[Int]
-case class Sum(expr: Expression[_]) extends Expression[Int]
 
 case class Plus[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
 case class Minus[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
 case class Multiply[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
 case class Divide[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
-
-case class Concat(lhs: Expression[?], rhs: Expression[?]) extends Expression[String]
 
 
 extension (lhs: Expression[Boolean]) {
@@ -67,17 +62,23 @@ extension (lhs: Expression[Boolean]) {
 }
 
 extension [T <: Numeric](lhs: Expression[T]) {
-  infix def <(rhs: Expression[T]) = LessThan(lhs, rhs)
-  infix def >(rhs: Expression[T]) = GreaterThan(lhs, rhs)
+  infix def <(rhs: Expression[T]) = Function[Boolean]("<", List(lhs, rhs))
+  infix def <=(rhs: Expression[T]) = Function[Boolean]("<=", List(lhs, rhs))
+  infix def >(rhs: Expression[T]) = Function[Boolean](">", List(lhs, rhs))
+  infix def >=(rhs: Expression[T]) = Function[Boolean](">=", List(lhs, rhs))
   infix def +(rhs: Expression[T]) = Plus(lhs, rhs)
   infix def -(rhs: Expression[T]) = Minus(lhs, rhs)
   infix def *(rhs: Expression[T]) = Multiply(lhs, rhs)
   infix def /(rhs: Expression[T]) = Divide(lhs, rhs)
 
-  def min = Min(lhs)
-  def max = Max(lhs)
-  def avg = Average(lhs)
-  def sum = Sum(lhs)
+  def min = Function[Int]("MIN", List(lhs))
+  def max = Function[Int]("MAX", List(lhs))
+  def avg = Function[Int]("AVG", List(lhs))
+  def sum = Function[Int]("SUM", List(lhs))
+}
+
+extension (lhs: Expression[_]) {
+  infix def +(rhs: Expression[_]) = lhs.concat(rhs)
 }
 
 given Conversion[String, Expression[String]] = LiteralExpression(_)
