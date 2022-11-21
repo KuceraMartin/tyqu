@@ -8,18 +8,72 @@ import tyqu.*
 
 class GenericSqlTranslator(platform: Platform):
 
-  def translate(qb: QueryBuilder[?], indent: Int = 0): String =
+  def translate(qb: QueryBuilder[_]): String =
+
+    def collectRelations(
+      exprs: List[Expression[_]],
+      counter: Map[String, Int] = Map.empty,
+      aliases: Map[TableRelation, String] = Map.empty,
+    ): (Map[String, Int], Map[TableRelation, String]) =
+      exprs.foldLeft((counter, aliases)){ (acc, e) =>
+        val (counter, aliases) = acc
+
+        def addRelation(relation: Relation) =
+          aliases.get(relation) match
+            case Some(alias) => (counter, aliases)
+            case None =>
+              val tableName = relation.table._name
+              val cnt = counter.getOrElse(tableName, 0) + 1
+              val alias = if (cnt == 1) tableName else f"${tableName}_$cnt"
+              (counter + (tableName -> cnt), aliases + (relation -> alias))
+
+        e match
+          case ColumnValue(_, relation) => addRelation(relation)
+          case SubqueryExpression(qb) => addRelation(qb.from)
+          case Function(_, args) => collectRelations(args, counter, aliases)
+          case p: Product =>
+            val args = p.productIterator.collect{ case e: Expression[_] => e }.toList
+            collectRelations(args, counter, aliases)
+      }
+
+    val (counter, aliases) = collectRelations(List(
+      qb.scope match
+        case t: TupleScope => t._toList
+        case e: Expression[_] => List(e),
+
+      qb.where.toList,
+
+      qb.orderBy.map{
+        case e: Expression[_] => e
+        case Asc(e) => e
+        case Desc(e) => e
+      },
+      
+    ).flatten)
+
+    doTranslate(
+      qb,
+      aliases.map{ (relation, alias) =>
+        if relation.table._name == alias && counter(alias) > 1 then
+          (relation, f"${alias}_1")
+        else
+          (relation, alias)
+      },
+    )
+
+
+  def doTranslate(qb: QueryBuilder[_], tableAliases: Map[TableRelation, String], indent: Int = 0): String =
 
     def translateSelectSope(scope: Scope) =
       (scope match
-        case expr: Expression[?] => translateSelectExpression(expr)
+        case expr: Expression[_] => translateSelectExpression(expr)
         case tuple: TupleScope =>
-          if (tuple._isSelectStar) f"${platform.formatIdentifier(qb.from._relationName)}.*"
+          if (tuple._isSelectStar) f"${platform.formatIdentifier(qb.from.table._name)}.*"
           else tuple._toList.map(translateSelectExpression).mkString(", ")
       )
 
 
-    def translateSelectExpression(select: Expression[?]): String = select match
+    def translateSelectExpression(select: Expression[_]): String = select match
       case Alias(alias, expression) =>
         f"${translateExpression(expression)} AS ${platform.formatIdentifier(alias)}"
       case _ => translateExpression(select)
@@ -33,13 +87,13 @@ class GenericSqlTranslator(platform: Platform):
 
     def translateExpression(expr: Expression[?]): String = expr match
       case ColumnValue(name, relation) =>
-        platform.formatIdentifier(relation._relationName) + "." + platform.formatIdentifier(relation._getColumnName(name))
+        platform.formatIdentifier(tableAliases(relation)) + "." + platform.formatIdentifier(relation.table._getColumnName(name))
 
       case Alias(name, _) =>
         platform.formatIdentifier(name)
       
       case SubqueryExpression(qb: QueryBuilder[?]) =>
-        f"(\n${translate(qb, indent + 1)}\n)"
+        f"(\n${doTranslate(qb, tableAliases, indent + 1)}\n)"
 
       case LiteralExpression(value: Numeric) =>
         value.toString
@@ -100,7 +154,12 @@ class GenericSqlTranslator(platform: Platform):
     List(
       Some("SELECT " + translateSelectSope(qb.scope)),
 
-      Some("FROM " + platform.formatIdentifier(qb.from._relationName)),
+      Some(
+        f"FROM ${platform.formatIdentifier(qb.from.table._name)}" + (
+          if (qb.from.table._name == tableAliases(qb.from)) ""
+          else " " + platform.formatIdentifier(tableAliases(qb.from))
+        )
+      ),
 
       qb.where.map("WHERE " + translateExpression(_)),
 

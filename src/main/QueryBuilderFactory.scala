@@ -12,12 +12,14 @@ type StringSubtype[T <: String & Singleton] = T
 
 object QueryBuilderFactory:
 
-  transparent inline def fromObject[T <: Table](inline table: T) = ${ fromObjectImpl('table) }
+  transparent inline def fromObject[T <: TableRelation](inline table: T) = ${ fromObjectImpl('table) }
 
-  private def fromObjectImpl[T <: Table](table: Expr[T])(using q: Quotes, t: Type[T]) =
+  private def fromObjectImpl[T <: TableRelation](table: Expr[T])(using q: Quotes, t: Type[T]) =
     import quotes.reflect.*
 
-    val classSymbol = table.asTerm.tpe.classSymbol.get
+    val classSymbol = table.asTerm.underlying match
+      case Apply(_, List(s)) => s.tpe.classSymbol.get
+
     val fields = classSymbol.declaredFields
 
     val (selection, refinementType) =

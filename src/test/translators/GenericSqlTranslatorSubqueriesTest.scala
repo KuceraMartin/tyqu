@@ -88,3 +88,20 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
   }
 
 
+  test("subquery on the same table") {
+    val query = translator.translate(
+      from(Releases).map { r => (
+          r.title,
+          from(Releases).filter(_.id < r.id).count.as("preceding"),
+        )
+      }
+    )
+
+    assertEquals(query,
+      """|SELECT `releases_1`.`title`, (
+         |  SELECT COUNT(*)
+         |  FROM `releases` `releases_2`
+         |  WHERE `releases_2`.`id` < `releases_1`.`id`
+         |) AS `preceding`
+         |FROM `releases` `releases_1`""".stripMargin)
+  }
