@@ -4,7 +4,7 @@ package tyqu:
 
     test("columns need to be instances of Column") {
       val code = """
-          object MyTable extends Table("t"):
+          object MyTable extends Table:
             val id = Column[Int]()
             val firstName = Column[String]()
             val someProp = other.Column[Int]("other column")

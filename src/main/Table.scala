@@ -12,16 +12,11 @@ def camelToSnakeCase(s: String) =
     .mkString
 
 
-abstract class Relation(
-  val _getColumnName: String => String = identity,
-):
-  val _relationName: String
-
-
 abstract class Table(
   translateIdentifier: String => String = camelToSnakeCase,
-) extends Relation(translateIdentifier):
-  val _relationName = translateIdentifier(getClass.getSimpleName.stripSuffix("$"))
+):
+  val _name = translateIdentifier(getClass.getSimpleName.stripSuffix("$"))
+  def _getColumnName(property: String) = translateIdentifier(property)
 
 
 // , WriteType <: ReadType | Null

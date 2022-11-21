@@ -45,4 +45,5 @@ end QueryBuilder
 
 
 transparent inline def from[T <: Table](table: T) =
-  QueryBuilderFactory.fromObject(table)
+  val relation = TableRelation(table)
+  QueryBuilderFactory.fromObject(relation)

@@ -5,7 +5,7 @@ class QueryBuilderTest extends UnitTest:
 
   test("filter type mismatch") {
     val code = """
-        object MyTable extends Table("t"):
+        case object MyTable extends Table:
           val id = Column[Int]()
           val firstName = Column[String]()
           val lastName = Column[String]()

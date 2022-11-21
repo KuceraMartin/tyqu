@@ -68,7 +68,7 @@ object ScopeFactory:
           case List(head, tail) => head match
             case AppliedType(_, List(_, ConstantType(name))) =>
               inner(tail, Refinement(acc, name.value.asInstanceOf[String], head))
-          case l: List[AppliedType] =>
+          case l: List[TypeRepr] =>
             l.foldLeft(acc) { (acc2, t2) => inner(t2, acc2) }
         case TypeRef(_, _) | TermRef(_, _) => acc
 

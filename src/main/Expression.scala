@@ -5,6 +5,10 @@ type Numeric = Int | Long | Float | Double
 type Primitive = Numeric | String | Char | Boolean
 
 
+type Relation = TableRelation
+class TableRelation(val table: Table)
+
+
 abstract sealed class Expression[T]:
 
   def as(n: String) = Alias[T, n.type](n, this)
