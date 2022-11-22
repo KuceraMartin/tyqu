@@ -3,13 +3,12 @@ package tyqu
 import utils.checkTupleOf
 
 
-def camelToSnakeCase(s: String) =
+def camelToSnakeCase(s: String): String =
   if (s.isBlank) ""
-  else s.head.toLower + s.drop(1).flatMap{ c =>
+  else s.head.toLower.toString + s.drop(1).flatMap{ c =>
       if (c.isUpper) "_" + c.toLower
       else c.toString
     }
-    .mkString
 
 
 abstract class Table(

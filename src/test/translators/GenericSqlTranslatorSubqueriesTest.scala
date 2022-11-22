@@ -1,5 +1,7 @@
 package tyqu.translators
 
+import scala.language.implicitConversions
+
 import tyqu.platforms.MySqlPlatform
 import tyqu.{*, given}
 
