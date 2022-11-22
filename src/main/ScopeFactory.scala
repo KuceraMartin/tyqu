@@ -6,36 +6,23 @@ import scala.annotation.tailrec
 
 object ScopeFactory:
 
-  transparent inline def append[T <: TupleScope, E <: NamedExpression[?, ?]](inline scope: T, inline expression: E) =
-    ${appendImpl[T, E]('scope, 'expression)}
-
-  private def appendImpl[T <: TupleScope : Type, E <: NamedExpression[?, ?] : Type](scope: Expr[T], expression: Expr[E])(using Quotes) =
-    refine[E, T] match
-      case '[ScopeSubtype[t]] => '{ TupleScope($scope._items :* $expression, isSelectStar = false).asInstanceOf[t] }
-
-
-  transparent inline def prepend[E <: NamedExpression[?, ?], T <: TupleScope](inline expression: E, inline scope: T) = ${prependImpl[E, T]('expression, 'scope)}
-
-  private def prependImpl[E <: NamedExpression[?, ?] : Type, T <: TupleScope : Type](expression: Expr[E], scope: Expr[T])(using Quotes) =
-    refine[E, T] match
-      case '[ScopeSubtype[t]] => '{ TupleScope($expression *: $scope._items, isSelectStar = false).asInstanceOf[t] }
-
-
   transparent inline def concatRight[S <: TupleScope, T <: Tuple](inline scope: S, inline tuple: T) = ${concatRightImpl[S, T]('scope, 'tuple)}
 
   private def concatRightImpl[S <: TupleScope : Type, T <: Tuple : Type](scope: Expr[S], tuple: Expr[T])(using Quotes) =
+    val newItems = '{ replaceOrAppend($scope._items, $tuple) }
     refine[T, S] match
-      case '[ScopeSubtype[t]] => '{ TupleScope($scope._items ++ $tuple, isSelectStar = false).asInstanceOf[t] }
+      case '[ScopeSubtype[t]] => '{ TupleScope($newItems, isSelectStar = false).asInstanceOf[t] }
 
 
   transparent inline def concatLeft[T <: Tuple, S <: TupleScope](inline tuple: T, inline scope: S) = ${concatLeftImpl[T, S]('tuple, 'scope)}
 
   private def concatLeftImpl[T <: Tuple : Type, S <: TupleScope : Type](tuple: Expr[T], scope: Expr[S])(using Quotes) =
+    val newItems = '{ replaceOrPrepend($scope._items, $tuple) }
     refine[T, S] match
-      case '[ScopeSubtype[t]] => '{ TupleScope($tuple ++ $scope._items, isSelectStar = false).asInstanceOf[t] }
+      case '[ScopeSubtype[t]] => '{ TupleScope($newItems, isSelectStar = false).asInstanceOf[t] }
 
 
-  def refine[T : Type, S <: TupleScope : Type](using Quotes): Type[?] =
+  def refine[T <: Tuple : Type, S <: TupleScope : Type](using Quotes): Type[?] =
     import quotes.reflect.*
 
     val emptyTuple = Symbol.classSymbol("scala.EmptyTuple")
@@ -55,7 +42,42 @@ object ScopeFactory:
           rec(tail, refineSingle(head, acc))
         case tpe if tpe.derivesFrom(emptyTuple) =>
           acc
-        case _ =>
-          refineSingle(tpe, acc)
 
-    rec(TypeRepr.of[T], TypeRepr.of[S]).asType
+    val res = rec(TypeRepr.of[T], TypeRepr.of[S])
+    res.asType
+
+
+  def replaceOrAppend(tuple: Tuple, replacements: Tuple): Tuple =
+    foldLeft(replacements)(tuple){
+      case (tuple: Tuple, e: NamedExpression[?, ?]) =>
+        val (res, didReplace) = replace(tuple, e)
+        if (didReplace) res
+        else res :* e
+    }
+    
+  def replaceOrPrepend(tuple: Tuple, replacements: Tuple): Tuple =
+    foldRight(replacements)(tuple){
+      case (e: NamedExpression[?, ?], acc: Tuple) =>
+        val (res, didReplace) = replace(acc, e)
+        if (didReplace) res
+        else e *: res
+    }
+
+  def replace(tuple: Tuple, replacement: NamedExpression[?, ?]): (Tuple, Boolean) =
+    foldLeft(tuple)((EmptyTuple: Tuple, false)){
+      case ((acc, didReplace), e: NamedExpression[?, ?]) =>
+        if e.alias == replacement.alias then
+          (acc :* replacement, true)
+        else
+          (acc :* e, didReplace)
+    }
+
+  def foldLeft[B](tuple: Tuple)(z: B)(op: (B, Any) => B): B =
+    tuple match
+      case EmptyTuple => z
+      case h *: t => foldLeft(t)(op(z, h))(op)
+
+  def foldRight[B](tuple: Tuple)(z: B)(op: (Any, B) => B): B =
+    tuple match
+      case EmptyTuple => z
+      case h *: t => op(h, foldRight(t)(z)(op))
