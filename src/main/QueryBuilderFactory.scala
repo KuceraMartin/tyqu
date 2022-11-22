@@ -12,9 +12,10 @@ type StringSubtype[T <: String & Singleton] = T
 
 object QueryBuilderFactory:
 
-  transparent inline def fromObject[T <: TableRelation](inline table: T) = ${ fromObjectImpl('table) }
+  transparent inline def fromObject[T <: TableRelation](inline table: T) =
+    ${ fromObjectImpl[T]('table) }
 
-  private def fromObjectImpl[T <: TableRelation](table: Expr[T])(using q: Quotes, t: Type[T]) =
+  private def fromObjectImpl[T <: TableRelation: Type](table: Expr[T])(using Quotes) =
     import quotes.reflect.*
 
     val classSymbol = table.asTerm.underlying match
@@ -25,14 +26,13 @@ object QueryBuilderFactory:
     val (selection, refinementType) =
       fields.foldRight(('{EmptyTuple}: Expr[Tuple], TypeRepr.of[TupleScope])){ (field, acc) =>
         val (accSelection, accRefinement) = acc
-        field.typeRef.translucentSuperType match
-          case AppliedType(TypeRef(TermRef(_, "tyqu"), "Column"), tr :: _) =>
-            val nameTp = ConstantType(StringConstant(field.name))
+        field.typeRef.translucentSuperType.asType match
+          case '[Column[t]] =>
+            val nameTp = ConstantType(StringConstant(field.name)).asType
             val nameExpr = Expr(field.name)
-            val cv = tr.asType match
-              case '[t] => nameTp.asType match
-                case '[StringSubtype[n]] =>
-                  '{ColumnValue[t, n]($nameExpr.asInstanceOf[n], $table)}
+            val cv = nameTp match
+              case '[StringSubtype[n]] =>
+                '{ColumnValue[t, n](${nameExpr.asExprOf[n]}, $table)}
             val tp = Refinement(accRefinement, field.name, cv.asTerm.tpe)
             ('{$cv *: ${accSelection}}, tp)
           case _ =>
@@ -42,16 +42,12 @@ object QueryBuilderFactory:
       }
 
     refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ new QueryBuilder(TupleScope($selection, isSelectStar = true), $table).asInstanceOf[QueryBuilder[t]]}
+      case '[ScopeSubtype[t]] => '{ new QueryBuilder[t](TupleScope($selection, isSelectStar = true).asInstanceOf[t], $table)}
 
 
-  transparent inline def fromTuple[T <: Tuple](inline selection: T, inline qb: QueryBuilder[_]) = ${fromTupleImpl('selection, 'qb)}
+  transparent inline def fromTuple[T <: Tuple](inline selection: T, inline qb: QueryBuilder[_]): QueryBuilder[?] =
+    ${fromTupleImpl[T]('selection, 'qb)}
 
-  private def fromTupleImpl[T <: Tuple](selection: Expr[T], qb: Expr[QueryBuilder[_]])(using q: Quotes, t: Type[T]) =
-    import quotes.reflect.*
-
-    val scope = '{TupleScope($selection)}
-    val refinementType = ScopeFactory.refine(scope, selection)
-
-    refinementType.asType match
-      case '[ScopeSubtype[t]] => '{ $qb.copy(scope = $scope).asInstanceOf[QueryBuilder[t]]}
+  private def fromTupleImpl[T <: Tuple : Type](selection: Expr[T], qb: Expr[QueryBuilder[_]])(using Quotes): Expr[QueryBuilder[?]] =
+    ScopeFactory.refine[T, TupleScope] match
+      case '[ScopeSubtype[t]] => '{ $qb.copy(scope = TupleScope($selection)).asInstanceOf[QueryBuilder[t]] }
