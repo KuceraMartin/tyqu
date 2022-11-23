@@ -19,24 +19,27 @@ class TupleScope(
 
   def _isSelectStar = isSelectStar
 
-  transparent inline infix def :*(expr: NamedExpression[_, _]) =
-    ScopeFactory.append(this, expr)
-
-  transparent inline infix def ++[T <: Tuple](tuple: T): TupleScope =
-    checkTupleOf[NamedExpression[_, _]](tuple)
-    ScopeFactory.concatRight(this, tuple)
-
 end TupleScope
 
 
-extension (lhs: NamedExpression[_, _]) {
-  transparent inline infix def *:[S <: TupleScope](scope: S) =
-    ScopeFactory.prepend(lhs, scope)
+extension [S <: TupleScope](lhs: S) {
+  transparent inline infix def :*[E <: NamedExpression[?, ?]](inline expr: E) =
+    lhs ++ Tuple1[E](expr)
+
+  transparent inline infix def ++[T <: Tuple](inline tuple: T): TupleScope =
+    checkTupleOf[NamedExpression[_, _]](tuple)
+    ScopeFactory.concatRight(lhs, tuple)
+}
+
+
+extension [E <: NamedExpression[?, ?]](lhs: E) {
+  transparent inline infix def *:[S <: TupleScope](inline scope: S) =
+    Tuple1(lhs) ++ scope
 }
 
 
 extension [T <: Tuple](lhs: T) {
-  transparent inline infix def ++[S <: TupleScope](scope: S) =
+  transparent inline infix def ++[S <: TupleScope](inline scope: S) =
     checkTupleOf[NamedExpression[_, _]](lhs)
     ScopeFactory.concatLeft(lhs, scope)
 }

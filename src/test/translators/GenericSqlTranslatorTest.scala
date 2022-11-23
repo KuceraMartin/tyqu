@@ -170,6 +170,17 @@ class GenericSqlTranslatorTest extends UnitTest:
   }
 
 
+  test("overwrite scope member") {
+    val query = translator.translate(
+        from(MyTable).map{ t => t :* t.firstName.as("id") }
+      )
+
+    assertEquals(query,
+      """|SELECT `my_table`.`first_name` AS `id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+         |FROM `my_table`""".stripMargin)
+  }
+
+
   test("map to Expression") {
     val query = translator.translate(
         from(MyTable).map(_.age.sum)
