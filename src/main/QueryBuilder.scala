@@ -8,20 +8,45 @@ import utils.checkTupleOf
 case class QueryBuilder[+T <: Scope](
   scope: T,
   from: Relation,
+  isMapped: Boolean = false,
   where: Option[Expression[Boolean]] = None,
   orderBy: List[OrderBy] = List.empty,
   limit: Option[Int] = None,
   offset: Int = 0,
 ):
 
+  type WidenScopeType[T <: Scope] <: Scope = T match
+    case Expression[t] => Expression[t]
+    case _ => T
+
   @targetName("mapToScope")
-  def map[T2 <: Scope](fn: T => T2): QueryBuilder[T2] =
-    copy(scope = fn(scope))
+  def map[T2 <: Scope](fn: T => T2): QueryBuilder[WidenScopeType[T2]] =
+    val (originalScope, newQb) = prepareMap
+    val newScope = fn(originalScope).asInstanceOf[WidenScopeType[T2]]
+    newQb.copy(scope = newScope, isMapped = true)
   
   @targetName("mapToTuple")
   inline transparent def map[T2 <: Tuple](inline fn: T => T2): QueryBuilder[?] =
-    checkTupleOf[NamedExpression[_, _]](fn(scope))
-    QueryBuilderFactory.fromTuple(fn(scope), this)
+    val (originalScope, newQb) = prepareMap
+    val newScope = fn(originalScope)
+    checkTupleOf[NamedExpression[_, _]](newScope)
+    QueryBuilderFactory.fromTuple(newScope, newQb)
+
+  private def prepareMap =
+    if isMapped then
+      // if we have only one value in scope -> name it so that it can be accessed
+      val originalScope = scope match
+          case e: Expression[t] => e.as("v")
+          case s => s
+      val newRelation = SubqueryRelation(copy(scope = originalScope))
+      val newScope = (originalScope match
+          case ts: TupleScope => ts._replaceRelation(newRelation)
+          case e: NamedExpression[t, n] => ColumnValue[t, n](e.alias, newRelation)
+        ).asInstanceOf[T]
+      val newQb = new QueryBuilder(newScope, newRelation)
+      (newScope, newQb)
+    else
+      (scope, this)
 
   def filter(predicate: T => Expression[Boolean]): QueryBuilder[T] =
     val expr = predicate(scope)
