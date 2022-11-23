@@ -8,6 +8,7 @@ import utils.checkTupleOf
 case class QueryBuilder[+T <: Scope](
   scope: T,
   from: Relation,
+  isMapped: Boolean = false,
   where: Option[Expression[Boolean]] = None,
   orderBy: List[OrderBy] = List.empty,
   limit: Option[Int] = None,
@@ -16,12 +17,20 @@ case class QueryBuilder[+T <: Scope](
 
   @targetName("mapToScope")
   def map[T2 <: Scope](fn: T => T2): QueryBuilder[T2] =
-    copy(scope = fn(scope))
+    if isMapped then
+      new QueryBuilder(fn(scope), SubqueryRelation(this), isMapped = true)
+    else
+      copy(scope = fn(scope), isMapped = true)
   
   @targetName("mapToTuple")
   inline transparent def map[T2 <: Tuple](inline fn: T => T2): QueryBuilder[?] =
     checkTupleOf[NamedExpression[_, _]](fn(scope))
-    QueryBuilderFactory.fromTuple(fn(scope), this)
+    val qb =
+      if isMapped then
+        new QueryBuilder(scope, SubqueryRelation(this))
+      else
+        this
+    QueryBuilderFactory.fromTuple(fn(scope), qb)
 
   def filter(predicate: T => Expression[Boolean]): QueryBuilder[T] =
     val expr = predicate(scope)

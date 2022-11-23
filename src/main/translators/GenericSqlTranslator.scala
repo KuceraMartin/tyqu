@@ -8,67 +8,66 @@ import tyqu.*
 
 class GenericSqlTranslator(platform: Platform):
 
-  def translate(qb: QueryBuilder[_]): String =
+  private def collectRelations(qb: QueryBuilder[_]): Seq[Relation] =
+    def fromExpression(e: Expression[_]): Seq[Relation] = 
+      e match
+        case ColumnValue(_, relation) => List(relation)
+        case SubqueryExpression(qb) => collectRelations(qb)
+        case Function(_, args) => args.flatMap(fromExpression)
+        case p: Product =>
+          p.productIterator.collect{ case e: Expression[_] => e }.flatMap(fromExpression).toSeq
+    
+    List(
+      List(qb.from),
 
-    def collectRelations(
-      exprs: List[Expression[_]],
-      counter: Map[String, Int] = Map.empty,
-      aliases: Map[TableRelation, String] = Map.empty,
-    ): (Map[String, Int], Map[TableRelation, String]) =
-      exprs.foldLeft((counter, aliases)){ (acc, e) =>
-        val (counter, aliases) = acc
+      qb.from match
+        case SubqueryRelation(qb2) => collectRelations(qb2)
+        case _: TableRelation => Nil,
 
-        def addRelation(relation: Relation) =
-          aliases.get(relation) match
-            case Some(alias) => (counter, aliases)
-            case None =>
-              val tableName = relation.table._name
-              val cnt = counter.getOrElse(tableName, 0) + 1
-              val alias = if (cnt == 1) tableName else f"${tableName}_$cnt"
-              (counter + (tableName -> cnt), aliases + (relation -> alias))
-
-        e match
-          case ColumnValue(_, relation) => addRelation(relation)
-          case SubqueryExpression(qb) => addRelation(qb.from)
-          case Function(_, args) => collectRelations(args, counter, aliases)
-          case p: Product =>
-            val args = p.productIterator.collect{ case e: Expression[_] => e }.toList
-            collectRelations(args, counter, aliases)
-      }
-
-    val (counter, aliases) = collectRelations(List(
       qb.scope match
-        case t: TupleScope => t._toList
-        case e: Expression[_] => List(e),
+        case t: TupleScope => t._toList.flatMap(fromExpression)
+        case e: Expression[_] => fromExpression(e),
 
-      qb.where.toList,
+      qb.where.flatMap(fromExpression),
 
       qb.orderBy.map{
-        case e: Expression[_] => e
-        case Asc(e) => e
-        case Desc(e) => e
-      },
-      
-    ).flatten)
+          case e: Expression[_] => e
+          case Asc(e) => e
+          case Desc(e) => e
+        }
+        .flatMap(fromExpression), 
+    ).flatten
+
+  def translate(qb: QueryBuilder[_]): String =
+    val (counter, aliases) = collectRelations(qb).foldLeft((Map[String, Int](), Map[Relation, String]())){ (acc, relation) =>
+      val (counter, aliases) = acc
+      aliases.get(relation) match
+        case Some(alias) => (counter, aliases)
+        case None =>
+          val tableName = relation.underlyingName
+          val cnt = counter.getOrElse(tableName, 0) + 1
+          val alias = if (cnt == 1) tableName else f"${tableName}_$cnt"
+          (counter + (tableName -> cnt), aliases + (relation -> alias))
+    }
 
     doTranslate(
       qb,
       aliases.map{ (relation, alias) =>
-        if relation.table._name == alias && counter(alias) > 1 then
-          (relation, f"${alias}_1")
+        if relation.underlyingName == alias && counter(alias) > 1 then
+            (relation, f"${alias}_1")
         else
           (relation, alias)
       },
     )
 
 
-  def doTranslate(qb: QueryBuilder[_], tableAliases: Map[TableRelation, String], indent: Int = 0): String =
+  def doTranslate(qb: QueryBuilder[_], tableAliases: Map[Relation, String], indent: Int = 0): String =
 
     def translateSelectSope(scope: Scope) =
       (scope match
         case expr: Expression[_] => translateSelectExpression(expr)
         case tuple: TupleScope =>
-          if (tuple._isSelectStar) f"${platform.formatIdentifier(qb.from.table._name)}.*"
+          if (tuple._isSelectStar) f"${platform.formatIdentifier(tableAliases(qb.from))}.*"
           else tuple._toList.map(translateSelectExpression).mkString(", ")
       )
 
@@ -79,6 +78,15 @@ class GenericSqlTranslator(platform: Platform):
       case _ => translateExpression(select)
 
 
+    def translateFromRelation(relation: Relation): String = relation match
+      case TableRelation(table) =>
+        platform.formatIdentifier(table._name) + (
+          if (table._name == tableAliases(relation)) ""
+          else " " + platform.formatIdentifier(tableAliases(relation))
+        )
+      case SubqueryRelation(qb) =>
+        f"(\n${doTranslate(qb, tableAliases, indent + 1)}\n) ${platform.formatIdentifier(tableAliases(relation))}"
+
     def translateOrderByExpression(ord: OrderBy) = ord match
       case Asc(expr) => translateExpression(expr) + " ASC"
       case Desc(expr) => translateExpression(expr) + " DESC"
@@ -87,7 +95,7 @@ class GenericSqlTranslator(platform: Platform):
 
     def translateExpression(expr: Expression[?]): String = expr match
       case ColumnValue(name, relation) =>
-        platform.formatIdentifier(tableAliases(relation)) + "." + platform.formatIdentifier(relation.table._getColumnName(name))
+        platform.formatIdentifier(tableAliases(relation)) + "." + platform.formatIdentifier(relation.getColumnName(name))
 
       case Alias(name, _) =>
         platform.formatIdentifier(name)
@@ -155,10 +163,7 @@ class GenericSqlTranslator(platform: Platform):
       Some("SELECT " + translateSelectSope(qb.scope)),
 
       Some(
-        f"FROM ${platform.formatIdentifier(qb.from.table._name)}" + (
-          if (qb.from.table._name == tableAliases(qb.from)) ""
-          else " " + platform.formatIdentifier(tableAliases(qb.from))
-        )
+        f"FROM ${translateFromRelation(qb.from)}"
       ),
 
       qb.where.map("WHERE " + translateExpression(_)),

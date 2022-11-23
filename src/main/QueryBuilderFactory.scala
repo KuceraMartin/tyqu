@@ -50,4 +50,4 @@ object QueryBuilderFactory:
 
   private def fromTupleImpl[T <: Tuple : Type](selection: Expr[T], qb: Expr[QueryBuilder[_]])(using Quotes): Expr[QueryBuilder[?]] =
     ScopeFactory.refine[T, TupleScope] match
-      case '[ScopeSubtype[t]] => '{ $qb.copy(scope = TupleScope($selection)).asInstanceOf[QueryBuilder[t]] }
+      case '[ScopeSubtype[t]] => '{ $qb.copy(scope = TupleScope($selection), isMapped = true).asInstanceOf[QueryBuilder[t]] }

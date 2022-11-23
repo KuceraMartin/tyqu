@@ -5,8 +5,17 @@ type Numeric = Int | Long | Float | Double
 type Primitive = Numeric | String | Char | Boolean
 
 
-type Relation = TableRelation
-class TableRelation(val table: Table)
+sealed abstract class Relation:
+  def underlyingName: String
+  def getColumnName(property: String): String
+
+case class TableRelation(table: Table) extends Relation:
+  def underlyingName: String = table._name
+  def getColumnName(property: String) = table._getColumnName(property)
+
+case class SubqueryRelation(qb: QueryBuilder[?]) extends Relation:
+  def underlyingName: String = qb.from.underlyingName
+  def getColumnName(property: String) = qb.from.getColumnName(property)
 
 
 abstract sealed class Expression[T]:
