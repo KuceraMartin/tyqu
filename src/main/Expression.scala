@@ -8,6 +8,10 @@ type Primitive = Numeric | String | Char | Boolean
 sealed abstract class Relation:
   def underlyingName: String
   def getColumnName(property: String): String
+  override def equals(x: Any): Boolean =
+    x match
+      case r: Relation => this.eq(r)
+      case _ => false
 
 case class TableRelation(table: Table) extends Relation:
   def underlyingName: String = table._name

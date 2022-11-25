@@ -27,7 +27,14 @@ case class QueryBuilder[+T <: Scope](
     checkTupleOf[NamedExpression[_, _]](fn(scope))
     val qb =
       if isMapped then
-        new QueryBuilder(scope, SubqueryRelation(this))
+        val newRelation = SubqueryRelation(this)
+        scope match
+          case ts: TupleScope =>
+            new QueryBuilder(ts._replaceRelation(newRelation), newRelation)
+          /*case e: NamedExpression[t, n] =>
+            new QueryBuilder(ColumnValue[t, n](e.alias, newRelation), newRelation)
+          case e: Expression[t] =>
+            this*/
       else
         this
     QueryBuilderFactory.fromTuple(fn(scope), qb)
