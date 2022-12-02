@@ -29,9 +29,10 @@ object ScopeFactory:
     val cons = Symbol.classSymbol("scala.*:")
 
     def refineSingle(col: TypeRepr, base: TypeRepr) =
-      col.baseType(Symbol.classSymbol("tyqu.NamedExpression")) match
+      val namedExpr = col.baseType(Symbol.classSymbol("tyqu.NamedExpression"))
+      namedExpr match
         case AppliedType(_, List(_, ConstantType(StringConstant(name)))) =>
-          Refinement(base, name, col)
+          Refinement(base, name, namedExpr)
 
     @tailrec
     def rec(tpe: TypeRepr, acc: TypeRepr): TypeRepr =

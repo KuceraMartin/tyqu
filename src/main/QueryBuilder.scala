@@ -18,26 +18,35 @@ case class QueryBuilder[+T <: Scope](
   @targetName("mapToScope")
   def map[T2 <: Scope](fn: T => T2): QueryBuilder[T2] =
     if isMapped then
-      new QueryBuilder(fn(scope), SubqueryRelation(this), isMapped = true)
+      val newRelation = SubqueryRelation(this)
+      val newScope = fn(
+        scope match
+          case ts: TupleScope => ts._replaceRelation(newRelation)
+          case e: NamedExpression[t, n] => ColumnValue[t, n](e.alias, newRelation).asInstanceOf[T]
+          case e: Expression[t] => e.as("v").asInstanceOf[T]
+      )
+      new QueryBuilder(newScope, newRelation, isMapped = true)
     else
       copy(scope = fn(scope), isMapped = true)
   
   @targetName("mapToTuple")
   inline transparent def map[T2 <: Tuple](inline fn: T => T2): QueryBuilder[?] =
-    checkTupleOf[NamedExpression[_, _]](fn(scope))
+    val newRelation = SubqueryRelation(this)
+    val newScope = fn(
+        if (isMapped)
+          inline scope match
+            case ts: TupleScope => ts._replaceRelation(newRelation)
+            case e: NamedExpression[t, n] => ColumnValue[t, n](e.alias, newRelation).asInstanceOf[T]
+            case e: Expression[t] => e.as("v").asInstanceOf[T] // TODO need to rename v also at subquery
+        else scope
+      )
+    checkTupleOf[NamedExpression[_, _]](newScope)
     val qb =
-      if isMapped then
-        val newRelation = SubqueryRelation(this)
-        scope match
-          case ts: TupleScope =>
-            new QueryBuilder(ts._replaceRelation(newRelation), newRelation)
-          /*case e: NamedExpression[t, n] =>
-            new QueryBuilder(ColumnValue[t, n](e.alias, newRelation), newRelation)
-          case e: Expression[t] =>
-            this*/
-      else
-        this
-    QueryBuilderFactory.fromTuple(fn(scope), qb)
+      if (isMapped) copy(from = newRelation)
+      else this
+    QueryBuilderFactory.fromTuple(newScope, qb)
+
+  private inline def prepareSubquery: (SubqueryRelation, T) = ???
 
   def filter(predicate: T => Expression[Boolean]): QueryBuilder[T] =
     val expr = predicate(scope)

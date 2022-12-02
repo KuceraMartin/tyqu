@@ -269,12 +269,12 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `my_table_1`.`first_name`
+      """|SELECT `my_table_2`.`first_name`
          |FROM (
-         |  SELECT `my_table_2`.`first_name`, `my_table_2`.`age` AS `a`
-         |  FROM `my_table` `my_table_2`
+         |  SELECT `my_table_1`.`first_name`, `my_table_1`.`age` AS `a`
+         |  FROM `my_table` `my_table_1`
          |  ORDER BY `a`
-         |) `my_table_1`""".stripMargin)
+         |) `my_table_2`""".stripMargin)
   }
 
 

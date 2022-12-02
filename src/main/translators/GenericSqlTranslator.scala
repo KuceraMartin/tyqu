@@ -18,12 +18,12 @@ class GenericSqlTranslator(platform: Platform):
           p.productIterator.collect{ case e: Expression[_] => e }.flatMap(fromExpression).toSeq
     
     List(
-      List(qb.from),
-
       qb.from match
         case SubqueryRelation(qb2) => collectRelations(qb2)
         case _: TableRelation => Nil,
 
+      List(qb.from),
+        
       qb.scope match
         case t: TupleScope => t._toList.flatMap(fromExpression)
         case e: Expression[_] => fromExpression(e),
