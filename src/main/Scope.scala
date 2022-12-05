@@ -19,6 +19,14 @@ class TupleScope(
 
   def _isSelectStar = isSelectStar
 
+  def _replaceRelation(relation: Relation): this.type =
+    def rec(items: Tuple): Tuple =
+      items match
+        case EmptyTuple => EmptyTuple
+        case (head: NamedExpression[t, n]) *: tail =>
+          ColumnValue[t, n](head.alias, relation) *: rec(tail)
+    new TupleScope(rec(_items), isSelectStar = true).asInstanceOf[this.type]
+
 end TupleScope
 
 

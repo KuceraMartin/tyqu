@@ -215,8 +215,27 @@ class GenericSqlTranslatorTest extends UnitTest:
 
     assertEquals(
       query,
-      """|SELECT `my_table`.`last_name` AS `ln`
-         |FROM `my_table`""".stripMargin,
+      """|SELECT `my_table_2`.`ln`
+         |FROM (
+         |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name` AS `fn`, `my_table_1`.`last_name` AS `ln`
+         |  FROM `my_table` `my_table_1`
+         |) `my_table_2`""".stripMargin,
+    )
+  }
+
+
+  test("double map without naming") {
+    val query = translator.translate(
+        from(MyTable).map(_.id * 2).map(_ * 3)
+      )
+
+    assertEquals(
+      query,
+      """|SELECT `my_table_2`.`v` * 3
+         |FROM (
+         |  SELECT `my_table_1`.`id` * 2 AS `v`
+         |  FROM `my_table` `my_table_1`
+         |) `my_table_2`""".stripMargin,
     )
   }
 
@@ -258,7 +277,7 @@ class GenericSqlTranslatorTest extends UnitTest:
   }
 
 
-  test("sort by something that is not in scope".ignore) {
+  test("sort by something that is not in scope") {
     val query = translator.translate(
         from(MyTable).map{ t => (t.firstName, t.age.as("a")) }
                    .sortBy(_.a)
@@ -266,9 +285,12 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `my_table`.`first_name`, `my_table`.`age` AS a
-         |FROM `my_table`
-         |ORDER BY `a`""".stripMargin)
+      """|SELECT `my_table_2`.`first_name`
+         |FROM (
+         |  SELECT `my_table_1`.`first_name`, `my_table_1`.`age` AS `a`
+         |  FROM `my_table` `my_table_1`
+         |  ORDER BY `a`
+         |) `my_table_2`""".stripMargin)
   }
 
 
