@@ -10,7 +10,7 @@ sealed abstract class Relation:
   def getColumnName(property: String): String
   override def equals(x: Any): Boolean =
     x match
-      case r: Relation => this.eq(r)
+      case r: Relation => eq(r)
       case _ => false
 
 case class TableRelation(table: Table) extends Relation:
