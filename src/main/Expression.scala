@@ -13,9 +13,18 @@ sealed abstract class Relation:
       case r: Relation => eq(r)
       case _ => false
 
-case class TableRelation(table: Table) extends Relation:
+abstract class TableRelation[T <: Table](val table: T) extends Relation:
   def underlyingName: String = table._name
   def getColumnName(property: String) = table._getColumnName(property)
+  def colToExpr(col: Column[?]) = table._colToExpr(col)(this.asInstanceOf[TableRelation[table.type]])
+  def pk = colToExpr(table._pk)
+
+enum JoinType:
+  case Inner, Left, Right, FullOuter
+
+case class FromRelation[T <: Table](t: T) extends TableRelation(t)
+
+case class JoinRelation[T <: Table](t: T, joinType: JoinType, on: JoinRelation[T] => Expression[Boolean]) extends TableRelation(t)
 
 case class SubqueryRelation(qb: QueryBuilder[?]) extends Relation:
   def underlyingName: String = qb.from.underlyingName

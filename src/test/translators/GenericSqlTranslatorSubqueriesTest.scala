@@ -9,32 +9,43 @@ import tyqu.{*, given}
 class GenericSqlTranslatorSubqueriesTest extends UnitTest:
 
   case object Releases extends Table:
-    val id = Column[Int]()
+    val id = Column[Int](primary = true)
     val title = Column[String]()
     val country = Column[String]()
     val genre = Column[String]()
+    lazy val tracks = OneToMany(Tracks, Tracks.release)
 
   case object Tracks extends Table:
-    val id = Column[Int]()
+    val id = Column[Int](primary = true)
     val position = Column[String]()
     val title = Column[String]()
     val duration = Column[Int]()
     val releaseId = Column[Int]()
+    lazy val release = ManyToOne(Releases, releaseId)
 
 
   val translator = new GenericSqlTranslator(MySqlPlatform)
 
 
-  test("map to subquery") {
+  test("map m:1") {
+    val query = translator.translate(
+      from(Tracks)
+        .map{ t => (t.title, t.release.genre) }
+    )
+
+    assertEquals(query,
+      """|SELECT `tracks`.`title`, `releases`.`genre`
+         |FROM `tracks`
+         |JOIN `releases` ON `tracks`.`release_id` = `releases`.`id`""".stripMargin)
+  }
+
+
+  test("map 1:m") {
     val query = translator.translate(
         from(Releases)
           .map{ r => (
               r.title,
-              (
-                from(Tracks)
-                  .filter(_.releaseId === r.id)
-                  .count
-              ).as("tracks"),
+              r.tracks.count.as("tracks"),
             )
           }
       )
@@ -49,13 +60,24 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
   }
 
 
-  test("filter by subquery") {
+  test("filter m:1") {
+    val query = translator.translate(
+      from(Tracks)
+        .filter(_.release.genre === "Rock")
+    )
+
+    assertEquals(query,
+      """|SELECT `tracks`.*
+         |FROM `tracks`
+         |JOIN `releases` ON `tracks`.`release_id` = `releases`.`id`
+         |WHERE `releases`.`genre` = 'Rock'""".stripMargin)
+  }
+
+
+  test("filter 1:m") {
     val query = translator.translate(
         from(Releases)
-          .filter{ r =>
-            from(Tracks).filter(_.releaseId === r.id)
-              .count > 5
-          }
+          .filter(_.tracks.count > 5)
           .map(_.title)
       )
 
@@ -70,12 +92,24 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
   }
 
 
-  test("sort by subquery") {
+  test("sort m:1") {
+    val query = translator.translate(
+      from(Tracks)
+        .sortBy(_.release.country)
+    )
+
+    assertEquals(query,
+      """|SELECT `tracks`.*
+         |FROM `tracks`
+         |JOIN `releases` ON `tracks`.`release_id` = `releases`.`id`
+         |ORDER BY `releases`.`country`""".stripMargin)
+  }
+
+
+  test("sort 1:m") {
     val query = translator.translate(
         from(Releases)
-          .sortBy{ r =>
-            (from(Tracks).filter(_.releaseId === r.id).count).desc
-          }
+          .sortBy(_.tracks.count.desc)
           .map(_.title)
       )
 
@@ -86,6 +120,24 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
          |  SELECT COUNT(*)
          |  FROM `tracks`
          |  WHERE `tracks`.`release_id` = `releases`.`id`
+         |) DESC""".stripMargin)
+  }
+
+
+  test("sort m:1:m") {
+    val query = translator.translate(
+      from(Tracks)
+        .sortBy(_.release.tracks.count.desc)
+    )
+
+    assertEquals(query,
+      """|SELECT `tracks_1`.*
+         |FROM `tracks` `tracks_1`
+         |ORDER BY (
+         |  SELECT COUNT(*)
+         |  FROM `tracks` `tracks_2`
+         |  JOIN `releases` ON `tracks_1`.`release_id` = `releases`.`id`
+         |  WHERE `tracks_2`.`release_id` = `releases`.`id`
          |) DESC""".stripMargin)
   }
 

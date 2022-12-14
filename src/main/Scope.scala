@@ -1,9 +1,13 @@
 package tyqu
 
+import java.lang.reflect.Modifier
+
+import scala.reflect.ClassTag
+
 import utils.checkTupleOf
 
 
-type Scope = TupleScope | Expression[_]
+type Scope = TupleScope | TableScope[_] | Expression[_]
 
 
 class TupleScope(
@@ -13,7 +17,7 @@ class TupleScope(
 
   val _toList = _items.productIterator.toList.asInstanceOf[List[NamedExpression[?, ?]]]
 
-  private val columns = _toList.map{ expr => (expr.alias, expr) }.toMap
+  protected val columns = _toList.map{ expr => (expr.alias, expr) }.toMap
 
   def selectDynamic(name: String): Any = columns(name)
 
@@ -51,3 +55,39 @@ extension [T <: Tuple](lhs: T) {
     checkTupleOf[NamedExpression[_, _]](lhs)
     ScopeFactory.concatLeft(lhs, scope)
 }
+
+
+class TableScope[T <: Table](
+  val _relation: TableRelation[T],
+  // val _items: Tuple,
+  // relations: String => Table,
+) extends Selectable:
+
+  def selectDynamic(name: String): Any =
+    _relation.table.getClass.getMethod(name).invoke(_relation.table) match
+      case c: Column[_] =>
+        _relation.colToExpr(c)
+      case OneToMany(sourceTable, ManyToOne(_, through)) =>
+        val propName = sourceTable.getClass.getMethods.find{ f =>
+          f.getReturnType == through.getClass && f.invoke(sourceTable).eq(through)
+        }.get.getName
+        val pk = _relation.pk
+        type PkType = pk.type match
+          case ColumnValue[t, n] => t
+        from(sourceTable).filter(_.selectDynamic(propName).asInstanceOf[Expression[PkType]] === pk)
+      case ManyToOne(target, through) =>
+        val pk = target._pk
+        type PkType = pk.type match
+          case Column[t] => t
+        val throughExpr = _relation.colToExpr(through).asInstanceOf[Expression[PkType]]
+        val rel = JoinRelation(target, JoinType.Inner, { join =>
+          throughExpr === join.pk.asInstanceOf[Expression[PkType]]
+        })
+        TableScope(rel)
+      case v => throw Exception(f"$name -> $v")
+
+end TableScope
+
+object TableScope:
+  implicit inline def refinedScope[T <: Table](scope: TableScope[T])(using ref: RefinedScope[T]): ref.Refined =
+    scope.asInstanceOf[ref.Refined]

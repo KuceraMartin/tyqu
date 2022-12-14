@@ -12,10 +12,10 @@ type StringSubtype[T <: String & Singleton] = T
 
 object QueryBuilderFactory:
 
-  transparent inline def fromObject[T <: TableRelation](inline table: T) =
+  transparent inline def fromObject[T <: TableRelation[?]](inline table: T) =
     ${ fromObjectImpl[T]('table) }
 
-  private def fromObjectImpl[T <: TableRelation: Type](table: Expr[T])(using Quotes) =
+  private def fromObjectImpl[T <: TableRelation[?]: Type](table: Expr[T])(using Quotes) =
     import quotes.reflect.*
 
     val classSymbol = table.asTerm.underlying match
@@ -36,9 +36,7 @@ object QueryBuilderFactory:
             val tp = Refinement(accRefinement, field.name, cv.asTerm.tpe)
             ('{$cv *: ${accSelection}}, tp)
           case _ =>
-            val tableName = classSymbol.name.stripSuffix("$")
-            val tp = field.typeRef.classSymbol.get.fullName
-            throw TableDefinitionException(f"Table ${tableName} has property ${field.name} of type $tp which is not an allowed member of a table definition!")
+            acc
       }
 
     refinementType.asType match

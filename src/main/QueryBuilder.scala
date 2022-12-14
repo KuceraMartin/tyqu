@@ -69,6 +69,8 @@ case class QueryBuilder[+T <: Scope](
 end QueryBuilder
 
 
-transparent inline def from[T <: Table](table: T) =
-  val relation = TableRelation(table)
-  QueryBuilderFactory.fromObject(relation)
+def from[T <: Table](table: T) =
+  val rel = FromRelation(table)
+  // val scope = ScopeFactory.fromTable(rel)
+  val scope = TableScope(rel)
+  QueryBuilder(scope, rel)

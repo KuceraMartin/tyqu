@@ -4,7 +4,69 @@ import scala.quoted.*
 import scala.annotation.tailrec
 
 
+trait RefinedScope[T <: Table]:
+    type Refined
+
+object RefinedScope:
+ transparent inline given refinedScope[T <: Table]: RefinedScope[T] = ${ refinedScopeImpl[T] }
+
+  def refinedScopeImpl[T <: Table : Type](using Quotes) =
+    import quotes.reflect.*
+
+    val classSymbol = TypeRepr.of[T].classSymbol.get
+    val fields = classSymbol.declaredFields
+    val refinedType =
+      fields.foldRight(TypeRepr.of[TableScope[T]]){ (field, acc) =>
+        val nameTp = ConstantType(StringConstant(field.name)).asType
+        val nameExpr = Expr(field.name)
+        field.typeRef.translucentSuperType.asType match
+          case '[Column[t]] =>
+            nameTp match
+              case '[StringSubtype[n]] =>
+                Refinement(acc, field.name, TypeRepr.of[ColumnValue[t, n]])
+          case '[OneToMany[t]] => 
+            Refinement(acc, field.name, TypeRepr.of[QueryBuilder[TableScope[t]]])
+          case '[ManyToOne[t]] =>
+            Refinement(acc, field.name, TypeRepr.of[TableScope[t]])
+          case _ =>
+            acc
+      }
+    refinedType.asType match
+      case '[t] => '{ new RefinedScope[T] { type Refined = t } }
+
 object ScopeFactory:
+
+  transparent inline def fromTable[T <: Table](inline table: TableRelation[T]): TableScope[T] =
+    ${fromTableImpl[T]('table)}
+
+  private def fromTableImpl[T <: Table : Type](table: Expr[TableRelation[T]])(using Quotes): Expr[TableScope[T]] =
+    import quotes.reflect.*
+
+    val classSymbol = table.asTerm.underlying match
+      case Apply(_, List(s, _)) => s.tpe.classSymbol.get
+
+    val fields = classSymbol.declaredFields
+
+    val (selection, relations) =
+      fields.foldRight(('{EmptyTuple}: Expr[Tuple], '{Map[String, Table]()})){ (field, acc) =>
+        val (accSelection, accRelations) = acc
+        val nameTp = ConstantType(StringConstant(field.name)).asType
+        val nameExpr = Expr(field.name)
+        field.typeRef.translucentSuperType.asType match
+          case '[Column[t]] =>
+            val cv = nameTp match
+              case '[StringSubtype[n]] =>
+                '{ColumnValue[t, n](${nameExpr.asExprOf[n]}, $table)}
+            ('{$cv *: ${accSelection}}, accRelations)
+          case '[OneToMany[t]] =>
+            // val rels = '{$accRelations + ($nameExpr -> "summon[t]")}.asExprOf[Map[String, Table]]
+            (accSelection, accRelations)
+          case _ =>
+            acc
+      }
+
+    '{ TableScope($table) }
+
 
   transparent inline def concatRight[S <: TupleScope, T <: Tuple](inline scope: S, inline tuple: T) = ${concatRightImpl[S, T]('scope, 'tuple)}
 
