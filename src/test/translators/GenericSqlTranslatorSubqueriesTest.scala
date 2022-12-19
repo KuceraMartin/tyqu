@@ -36,6 +36,13 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
   val translator = new GenericSqlTranslator(MySqlPlatform)
 
 
+  test("") {
+    from(Artists).filter(a => 
+      a.releases.filter(_.artists.filter(_.name === a.name).count > 1).count > 0
+    )
+  }
+
+
   test("map m:1") {
     val query = translator.translate(
       from(Tracks)

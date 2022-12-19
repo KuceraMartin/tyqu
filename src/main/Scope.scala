@@ -71,31 +71,21 @@ class TableScope[T <: Table](
         _relation.colToExpr(c)
       case OneToMany(sourceTable, ManyToOne(_, through)) =>
         val propName = sourceTable._colToName(through)
-        val pk = _relation.pk
-        type PkType = pk.type match
-          case ColumnValue[t, n] => t
-        from(sourceTable).filter(_.selectDynamic(propName).asInstanceOf[Expression[PkType]] === pk.asInstanceOf[Expression[PkType]])
+        from(sourceTable).filter(_.selectDynamic(propName).asInstanceOf[Expression[Any]] === _pk.asInstanceOf[Expression[Any]])
       case ManyToMany(targetTable, joiningTable, sourceColumn, targetColumn) =>
-        type TargetPkType = targetTable._pk.type match
-          case Column[t] => Expression[t]
-        type SourcePkType = _relation.table._pk.type match
-          case Column[t] => Expression[t]
         from(targetTable)
           .filter{ targetScope =>
-            val pk = targetScope._pk.asInstanceOf[TargetPkType]
+            val targetPk = targetScope._pk.asInstanceOf[Expression[Any]]
             val rel = JoinRelation(joiningTable, JoinType.Inner, { join =>
-              join.colToExpr(targetColumn).asInstanceOf[TargetPkType] === pk
+              join.colToExpr(targetColumn).asInstanceOf[Expression[Any]] === targetPk
             })
-            rel.colToExpr(sourceColumn).asInstanceOf[SourcePkType] === _pk.asInstanceOf[SourcePkType]
+            rel.colToExpr(sourceColumn).asInstanceOf[Expression[Any]] === _pk.asInstanceOf[Expression[Any]]
           }
 
       case ManyToOne(target, through) =>
-        val pk = target._pk
-        type PkType = pk.type match
-          case Column[t] => t
-        val throughExpr = _relation.colToExpr(through).asInstanceOf[Expression[PkType]]
+        val throughExpr = _relation.colToExpr(through).asInstanceOf[Expression[Any]]
         val rel = JoinRelation(target, JoinType.Inner, { join =>
-          throughExpr === join.pk.asInstanceOf[Expression[PkType]]
+          throughExpr === join.pk.asInstanceOf[Expression[Any]]
         })
         TableScope(rel)
       case v => throw Exception(f"$name -> $v")
@@ -103,5 +93,4 @@ class TableScope[T <: Table](
 end TableScope
 
 object TableScope:
-  implicit inline def refinedScope[T <: Table](scope: TableScope[T])(using ref: RefinedScope[T]): ref.Refined =
-    scope.asInstanceOf[ref.Refined]
+  given [T <: Table](using ref: RefinedScope[T]): Conversion[TableScope[T], ref.Refined] = _.asInstanceOf[ref.Refined]
