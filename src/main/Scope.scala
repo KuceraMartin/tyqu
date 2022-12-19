@@ -63,18 +63,32 @@ class TableScope[T <: Table](
   // relations: String => Table,
 ) extends Selectable:
 
+  def _pk = _relation.pk
+
   def selectDynamic(name: String): Any =
     _relation.table.getClass.getMethod(name).invoke(_relation.table) match
       case c: Column[_] =>
         _relation.colToExpr(c)
       case OneToMany(sourceTable, ManyToOne(_, through)) =>
-        val propName = sourceTable.getClass.getMethods.find{ f =>
-          f.getReturnType == through.getClass && f.invoke(sourceTable).eq(through)
-        }.get.getName
+        val propName = sourceTable._colToName(through)
         val pk = _relation.pk
         type PkType = pk.type match
           case ColumnValue[t, n] => t
-        from(sourceTable).filter(_.selectDynamic(propName).asInstanceOf[Expression[PkType]] === pk)
+        from(sourceTable).filter(_.selectDynamic(propName).asInstanceOf[Expression[PkType]] === pk.asInstanceOf[Expression[PkType]])
+      case ManyToMany(targetTable, joiningTable, sourceColumn, targetColumn) =>
+        type TargetPkType = targetTable._pk.type match
+          case Column[t] => Expression[t]
+        type SourcePkType = _relation.table._pk.type match
+          case Column[t] => Expression[t]
+        from(targetTable)
+          .filter{ targetScope =>
+            val pk = targetScope._pk.asInstanceOf[TargetPkType]
+            val rel = JoinRelation(joiningTable, JoinType.Inner, { join =>
+              join.colToExpr(targetColumn).asInstanceOf[TargetPkType] === pk
+            })
+            rel.colToExpr(sourceColumn).asInstanceOf[SourcePkType] === _pk.asInstanceOf[SourcePkType]
+          }
+
       case ManyToOne(target, through) =>
         val pk = target._pk
         type PkType = pk.type match

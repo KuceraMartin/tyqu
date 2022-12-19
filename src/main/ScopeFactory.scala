@@ -26,6 +26,8 @@ object RefinedScope:
                 Refinement(acc, field.name, TypeRepr.of[ColumnValue[t, n]])
           case '[OneToMany[t]] => 
             Refinement(acc, field.name, TypeRepr.of[QueryBuilder[TableScope[t]]])
+          case '[ManyToMany[t]] =>
+            Refinement(acc, field.name, TypeRepr.of[QueryBuilder[TableScope[t]]])
           case '[ManyToOne[t]] =>
             Refinement(acc, field.name, TypeRepr.of[TableScope[t]])
           case _ =>

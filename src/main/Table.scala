@@ -22,14 +22,19 @@ abstract class Table(
 
   lazy val _pk = _columns.find(_.primary).get
 
-  lazy val _colToExpr: Map[Column[?], TableRelation[this.type] => ColumnValue[?, ?]] =
+  lazy val _colToName: Map[Column[?], String] =
     getClass.getDeclaredMethods.collect { m =>
       m.getReturnType.getName match
         case "tyqu.Column" =>
           val col = m.invoke(this).asInstanceOf[Column[?]]
-          val expr = (rel: Relation) => createColumnValue(col, m.getName, rel)
-          (col -> expr)
+          (col -> m.getName)
     }.toMap
+
+  lazy val _colToExpr: Map[Column[?], TableRelation[this.type] => ColumnValue[?, ?]] =
+    _colToName.map { (col, name) =>
+      val expr = (rel: Relation) => createColumnValue(col, name, rel)
+      (col -> expr)
+    }
 
   private def createColumnValue[ReadType](col: Column[ReadType], name: String, rel: Relation) =
     ColumnValue[ReadType, name.type](name, rel)
@@ -45,3 +50,4 @@ case class Column[ReadType](
 
 case class ManyToOne[T <: Table](target: T, through: Column[?])
 case class OneToMany[T <: Table](sourceTable: T, sourceProp: ManyToOne[?])
+case class ManyToMany[T <: Table](target: T, joiningTable: Table, sourceColumn: Column[?], targetColumn: Column[?])
