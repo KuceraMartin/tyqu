@@ -1,6 +1,6 @@
 package tyqu
 
-import utils.checkTupleOf
+import utils.checkTupleOrInstanceOf
 
 
 def camelToSnakeCase(s: String): String =

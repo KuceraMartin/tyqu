@@ -4,11 +4,11 @@ import scala.quoted.*
 import scala.annotation.tailrec
 
 
-trait RefinedScope[T <: Table]:
+trait RefinedScope[S <: Scope]:
     type Refined
 
 object RefinedScope:
- transparent inline given refinedScope[T <: Table]: RefinedScope[T] = ${ refinedScopeImpl[T] }
+ transparent inline given refinedScope[T <: Table]: RefinedScope[TableScope[T]] = ${ refinedScopeImpl[T] }
 
   def refinedScopeImpl[T <: Table : Type](using Quotes) =
     import quotes.reflect.*
@@ -34,7 +34,7 @@ object RefinedScope:
             acc
       }
     refinedType.asType match
-      case '[t] => '{ new RefinedScope[T] { type Refined = t } }
+      case '[t] => '{ new RefinedScope[TableScope[T]] { type Refined = t } }
 
 object ScopeFactory:
 

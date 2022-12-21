@@ -26,7 +26,7 @@ class GenericSqlTranslator(platform: Platform):
 
       qb.scope match
         case t: TupleScope => t._toList.flatMap(fromExpression)
-        case t: TableScope[_] => List(t._relation)
+        case t: TableScope[_] => List(t.relation)
         case e: Expression[_] => fromExpression(e),
 
       qb.where.flatMap(fromExpression),
@@ -64,7 +64,7 @@ class GenericSqlTranslator(platform: Platform):
     )
 
 
-  def doTranslate(qb: QueryBuilder[_], tableAliases: Map[Relation, String], inScope: Set[Relation], indent: Int = 0): String =
+  private def doTranslate(qb: QueryBuilder[_], tableAliases: Map[Relation, String], inScope: Set[Relation], indent: Int = 0): String =
     val relations = collectRelations(qb, withSubqueries = false).toSet
     val newInScope = inScope ++ relations
 
@@ -99,7 +99,7 @@ class GenericSqlTranslator(platform: Platform):
 
 
     def translateFrom(scope: Scope) = scope match
-      case s: TableScope[?] => platform.formatIdentifier(tableAliases(s._relation))
+      case s: TableScope[?] => platform.formatIdentifier(tableAliases(s.relation))
       case _ => "TODO"
 
 
@@ -148,6 +148,9 @@ class GenericSqlTranslator(platform: Platform):
       case Not(expr) =>
         val tr = wrapInBraces[And | Or | Not](expr)
         f"NOT $tr"
+
+      case Exists(query) =>
+        f"EXISTS(\n${doTranslate(query, tableAliases, newInScope, indent + 1)}\n)"
 
       case CountAll() =>
         "COUNT(*)"

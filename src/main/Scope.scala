@@ -9,6 +9,9 @@ import utils.checkTupleOf
 
 type Scope = TupleScope | TableScope[_] | Expression[_]
 
+given [S <: TupleScope]: (RefinedScope[S] { type Refined = S }) = new RefinedScope[S] { type Refined = S }
+given [T]: (RefinedScope[Expression[T]] { type Refined = Expression[T] } ) = new RefinedScope[Expression[T]] { type Refined = Expression[T] }
+
 
 class TupleScope(
   val _items: Tuple,
@@ -58,32 +61,34 @@ extension [T <: Tuple](lhs: T) {
 
 
 class TableScope[T <: Table](
-  val _relation: TableRelation[T],
+  private[tyqu] val relation: TableRelation[T],
   // val _items: Tuple,
   // relations: String => Table,
 ) extends Selectable:
 
-  def _pk = _relation.pk
+  private[tyqu] def pk = relation.pk
 
   def selectDynamic(name: String): Any =
-    _relation.table.getClass.getMethod(name).invoke(_relation.table) match
+    relation.table.getClass.getMethod(name).invoke(relation.table) match
       case c: Column[_] =>
-        _relation.colToExpr(c)
+        relation.colToExpr(c)
       case OneToMany(sourceTable, ManyToOne(_, through)) =>
         val propName = sourceTable._colToName(through)
-        from(sourceTable).filter(_.selectDynamic(propName).asInstanceOf[Expression[Any]] === _pk.asInstanceOf[Expression[Any]])
+        val qb = from(sourceTable)
+        val expr = qb.scope.selectDynamic(propName).asInstanceOf[Expression[Any]] === pk.asInstanceOf[Expression[Any]]
+        qb.copy(where = Some(qb.where.map(_ && expr).getOrElse(expr)))
       case ManyToMany(targetTable, joiningTable, sourceColumn, targetColumn) =>
-        from(targetTable)
-          .filter{ targetScope =>
-            val targetPk = targetScope._pk.asInstanceOf[Expression[Any]]
-            val rel = JoinRelation(joiningTable, JoinType.Inner, { join =>
+        val qb = from(targetTable)
+        val targetScope = qb.scope
+        val targetPk = targetScope.pk.asInstanceOf[Expression[Any]]
+        val rel = JoinRelation(joiningTable, JoinType.Inner, { join =>
               join.colToExpr(targetColumn).asInstanceOf[Expression[Any]] === targetPk
             })
-            rel.colToExpr(sourceColumn).asInstanceOf[Expression[Any]] === _pk.asInstanceOf[Expression[Any]]
-          }
+        val expr = rel.colToExpr(sourceColumn).asInstanceOf[Expression[Any]] === pk.asInstanceOf[Expression[Any]]
+        qb.copy(where = Some(qb.where.map(_ && expr).getOrElse(expr)))
 
       case ManyToOne(target, through) =>
-        val throughExpr = _relation.colToExpr(through).asInstanceOf[Expression[Any]]
+        val throughExpr = relation.colToExpr(through).asInstanceOf[Expression[Any]]
         val rel = JoinRelation(target, JoinType.Inner, { join =>
           throughExpr === join.pk.asInstanceOf[Expression[Any]]
         })
@@ -93,4 +98,4 @@ class TableScope[T <: Table](
 end TableScope
 
 object TableScope:
-  given [T <: Table](using ref: RefinedScope[T]): Conversion[TableScope[T], ref.Refined] = _.asInstanceOf[ref.Refined]
+  given [T <: Table](using ref: RefinedScope[TableScope[T]]): Conversion[TableScope[T], ref.Refined] = _.asInstanceOf[ref.Refined]

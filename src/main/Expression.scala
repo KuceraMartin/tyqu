@@ -70,6 +70,7 @@ def lit[T](value: T) = LiteralExpression(value)
 case class And(lhs: Expression[Boolean], rhs: Expression[Boolean]) extends Expression[Boolean]
 case class Or(lhs: Expression[Boolean], rhs: Expression[Boolean]) extends Expression[Boolean]
 case class Not(expression: Expression[Boolean]) extends Expression[Boolean]
+case class Exists(query: QueryBuilder[?]) extends Expression[Boolean]
 
 case class CountAll() extends Expression[Int]
 

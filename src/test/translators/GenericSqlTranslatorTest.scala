@@ -113,17 +113,17 @@ class GenericSqlTranslatorTest extends UnitTest:
   }
 
 
-  test("map to Tuple2 ++ Tuple2") {
-    val query = translator.translate(
-        from(MyTable).map{ t => (t.id, t.firstName) ++ (t.lastName, t.age) }
-      )
+  // test("map to Tuple2 ++ Tuple2") {
+  //   val query = translator.translate(
+  //       from(MyTable).map{ t => (t.id, t.firstName) ++ (t.lastName, t.age) }
+  //     )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
-         |FROM `my_table`""".stripMargin,
-    )
-  }
+  //   assertEquals(
+  //     query,
+  //     """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+  //        |FROM `my_table`""".stripMargin,
+  //   )
+  // }
 
 
   // test("map to Scope :* Expression") {
