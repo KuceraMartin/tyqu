@@ -70,7 +70,7 @@ def lit[T](value: T) = LiteralExpression(value)
 case class And(lhs: Expression[Boolean], rhs: Expression[Boolean]) extends Expression[Boolean]
 case class Or(lhs: Expression[Boolean], rhs: Expression[Boolean]) extends Expression[Boolean]
 case class Not(expression: Expression[Boolean]) extends Expression[Boolean]
-case class Exists(query: QueryBuilder[?]) extends Expression[Boolean]
+case class Exists(subquery: SubqueryExpression[?]) extends Expression[Boolean]
 
 case class CountAll() extends Expression[Int]
 
@@ -80,15 +80,15 @@ case class Multiply[T](lhs: Expression[T], rhs: Expression[T]) extends Expressio
 case class Divide[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
 
 
-extension (lhs: Expression[Boolean]) {
+extension (lhs: Expression[Boolean]) 
   infix def &&(rhs: Expression[Boolean]) =
     if (lhs == NoFilterExpression) rhs
     else And(lhs, rhs)
   infix def ||(rhs: Expression[Boolean]) = Or(lhs, rhs)
   infix def unary_! = Not(lhs)
-}
 
-extension [T <: Numeric](lhs: Expression[T]) {
+
+extension [T <: Numeric](lhs: Expression[T])
   infix def <(rhs: Expression[T]) = Function[Boolean]("<", List(lhs, rhs))
   infix def <=(rhs: Expression[T]) = Function[Boolean]("<=", List(lhs, rhs))
   infix def >(rhs: Expression[T]) = Function[Boolean](">", List(lhs, rhs))
@@ -98,15 +98,15 @@ extension [T <: Numeric](lhs: Expression[T]) {
   infix def *(rhs: Expression[T]) = Multiply(lhs, rhs)
   infix def /(rhs: Expression[T]) = Divide(lhs, rhs)
 
-  def min = Function[Int]("MIN", List(lhs))
+  def min: Expression[Int] = Function[Int]("MIN", List(lhs))
   def max = Function[Int]("MAX", List(lhs))
   def avg = Function[Int]("AVG", List(lhs))
   def sum = Function[Int]("SUM", List(lhs))
-}
 
-extension (lhs: Expression[_]) {
+
+extension (lhs: Expression[_])
   infix def +(rhs: Expression[_]) = lhs.concat(rhs)
-}
+
 
 given Conversion[String, Expression[String]] = LiteralExpression(_)
 given Conversion[Int, Expression[Int]] = LiteralExpression(_)

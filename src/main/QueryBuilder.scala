@@ -56,7 +56,7 @@ object QueryBuilder:
       qb.copy(where = Some(qb.where.map(_ && expr).getOrElse(expr)))
     
     def exists(using ref: RefinedScope[T])(predicate: ref.Refined => Expression[Boolean]): Expression[Boolean] =
-      Exists(qb.filter(predicate))
+      Exists(SubqueryExpression(qb.filter(predicate).map(_ => 1)))
 
     def sortBy[Res <: Tuple | OrderBy](using ref: RefinedScope[T])(fn: ref.Refined => Res)/*(using checkTupleOrInstanceOf[Res, OrderBy] =:= Any)*/: QueryBuilder[T] =
       // checkTupleOrInstanceOf[OrderBy](fn(qb.scope.asInstanceOf[ref.Refined]))
@@ -65,6 +65,13 @@ object QueryBuilder:
         case o: OrderBy => List(o)
       qb.copy(orderBy = newOrderBy)
 
+
+  extension [T](qb: QueryBuilder[Expression[T]])
+    def sorted(desc: Boolean): QueryBuilder[Expression[T]] =
+      val newOrderBy = if desc then Desc(qb.scope) else Asc(qb.scope)
+      qb.copy(orderBy = List(newOrderBy))
+
+    def sorted: QueryBuilder[Expression[T]] = sorted(desc = false)
 
 def from[T <: Table](table: T) =
   val rel = FromRelation(table)

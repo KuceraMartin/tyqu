@@ -38,7 +38,7 @@ class GenericSqlTranslator(platform: Platform):
         }
         .flatMap(fromExpression),
     ).flatten
-        
+
 
   def translate(qb: QueryBuilder[_]): String =
     val (counter, aliases) = collectRelations(qb).foldLeft((Map[String, Int](), Map[Relation, String]())){ (acc, relation) =>
@@ -149,8 +149,8 @@ class GenericSqlTranslator(platform: Platform):
         val tr = wrapInBraces[And | Or | Not](expr)
         f"NOT $tr"
 
-      case Exists(query) =>
-        f"EXISTS(\n${doTranslate(query, tableAliases, newInScope, indent + 1)}\n)"
+      case Exists(subquery) =>
+        f"EXISTS ${translateExpression(subquery)}"
 
       case CountAll() =>
         "COUNT(*)"

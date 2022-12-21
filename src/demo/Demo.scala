@@ -40,19 +40,20 @@ object Demo:
   def main(args: Array[String]) =
     val translator = new GenericSqlTranslator(MySqlPlatform)
 
-    // average track duration
-    from(Tracks).map(_.duration.avg)
+    val q =
+      // average track duration
+      from(Tracks).map(_.duration.avg)
 
-    // List the titles of all releases by Radiohead in alphabetical order.
-    val q = from(Releases)
-      .filter(_.artists.exists(_.name === "Radiohead"))
-    	.map(_.title)
+      // List the titles of all releases by Radiohead in alphabetical order.
+      // from(Releases)
+      //   .filter(_.artists.exists(_.name === "Radiohead"))
+      //   .map(_.title)
+      //   .sorted
 
-    // What are the names and IDs of the top 10 artists with the most releases?
-    // val q =
-      from(Artists)
-        .sortBy(_.releases.count.desc)
-        .map(a => (a.name, a.id))
-        .limitBy(10)
+      // What are the names and IDs of the top 10 artists with the most releases?
+      // from(Artists)
+      //   .sortBy(_.releases.count.desc)
+      //   .map(a => (a.name, a.id))
+      //   .limitBy(10)
 
     println(translator.translate(q))
