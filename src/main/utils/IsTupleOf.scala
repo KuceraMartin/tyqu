@@ -1,7 +1,15 @@
 package utils
 
 
+type checkTupleOrInstanceOf[Actual, Expected] =
+  Actual match
+    case Expected => true
+    case EmptyTuple => true
+    case Expected *: xs => checkTupleOrInstanceOf[xs, Expected]
+    case _ => false
+
+
 transparent inline def checkTupleOf[S](t: Tuple): Unit = inline t match
-    case EmptyTuple => ()
-    case t: (S *: xs) => checkTupleOf[S](t.tail)
-    case t: (x *: xs) => compiletime.error("t is not a tuple of S!")
+  case EmptyTuple => ()
+  case t: (S *: xs) => checkTupleOf[S](t.tail)
+  case t: (x *: xs) => compiletime.error("t is not a tuple of S!")

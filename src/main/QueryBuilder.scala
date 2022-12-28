@@ -1,36 +1,39 @@
 package tyqu
 
-import scala.annotation.targetName
-
-import utils.checkTupleOf
+import utils.checkTupleOrInstanceOf
 
 
-case class QueryBuilder[+T <: Scope](
-  scope: T,
-  from: Relation,
-  isMapped: Boolean = false,
-  where: Option[Expression[Boolean]] = None,
-  orderBy: List[OrderBy] = List.empty,
-  limit: Option[Int] = None,
-  offset: Int = 0,
+case class QueryBuilder[T <: Scope](
+  private[tyqu] scope: T,
+  private[tyqu] from: Relation,
+  private[tyqu] isMapped: Boolean = false,
+  private[tyqu] where: Option[Expression[Boolean]] = None,
+  private[tyqu] orderBy: List[OrderBy] = List.empty,
+  private[tyqu] limit: Option[Int] = None,
+  private[tyqu] offset: Int = 0,
 ):
 
-  type WidenScopeType[T <: Scope] <: Scope = T match
-    case Expression[t] => Expression[t]
-    case _ => T
+  inline transparent def map[S <: Scope, T1 <: Tuple, T2 <: (S | T1)](using ref: RefinedScope[T])(inline fn: ref.Refined => T2): QueryBuilder[?] =
+    val (originalScope, newQb) = prepareMap
+    QueryBuilderFactory.fromMap[ref.Refined & Scope, S, T1, T2](originalScope.asInstanceOf[ref.Refined & Scope], newQb, fn)
 
-  @targetName("mapToScope")
-  def map[T2 <: Scope](fn: T => T2): QueryBuilder[WidenScopeType[T2]] =
-    val (originalScope, newQb) = prepareMap
-    val newScope = fn(originalScope).asInstanceOf[WidenScopeType[T2]]
-    newQb.copy(scope = newScope, isMapped = true)
+  def filter(using ref: RefinedScope[T])(predicate: ref.Refined => Expression[Boolean]): QueryBuilder[T] =
+    val expr = predicate(scope.asInstanceOf[ref.Refined])
+    copy(where = Some(where.map(_ && expr).getOrElse(expr)))
   
-  @targetName("mapToTuple")
-  inline transparent def map[T2 <: Tuple](inline fn: T => T2): QueryBuilder[?] =
-    val (originalScope, newQb) = prepareMap
-    val newScope = fn(originalScope)
-    checkTupleOf[NamedExpression[_, _]](newScope)
-    QueryBuilderFactory.fromTuple(newScope, newQb)
+  def exists(using ref: RefinedScope[T])(predicate: ref.Refined => Expression[Boolean]): Expression[Boolean] =
+    Exists(SubqueryExpression(filter(predicate).map(_ => 1).asInstanceOf))
+
+  def sortBy[Res <: Tuple | OrderBy](using ref: RefinedScope[T])(fn: ref.Refined => Res)(using checkTupleOrInstanceOf[Res, OrderBy] =:= true): QueryBuilder[T] =
+    val newOrderBy = fn(scope.asInstanceOf[ref.Refined]) match
+      case t: Tuple => t.toList.asInstanceOf[List[OrderBy]]
+      case o: OrderBy => List(o)
+    copy(orderBy = newOrderBy)
+
+  def limitBy(limit: Int, offset: Int = 0): QueryBuilder[T] =
+    copy(limit = Some(limit), offset = offset)
+
+  def count = copy(scope = CountAll(), isMapped = true)
 
   private def prepareMap =
     if isMapped then
@@ -40,7 +43,7 @@ case class QueryBuilder[+T <: Scope](
           case s => s
       val newRelation = SubqueryRelation(copy(scope = originalScope))
       val newScope = (originalScope match
-          case ts: TupleScope => ts._replaceRelation(newRelation)
+          case ts: TupleScope => ts.replaceRelation(newRelation)
           case e: NamedExpression[t, n] => ColumnValue[t, n](e.alias, newRelation)
         ).asInstanceOf[T]
       val newQb = new QueryBuilder(newScope, newRelation)
@@ -48,27 +51,27 @@ case class QueryBuilder[+T <: Scope](
     else
       (scope, this)
 
-  def filter(predicate: T => Expression[Boolean]): QueryBuilder[T] =
-    val expr = predicate(scope)
-    copy(where = Some(where.map(_ && expr).getOrElse(expr)))
+end QueryBuilder
 
-  @targetName("sortByWithTuple")
-  inline transparent def sortBy(fn: T => Tuple): QueryBuilder[T] =
-    checkTupleOf[OrderBy](fn(scope))
-    copy(orderBy = fn(scope).toList.asInstanceOf[List[OrderBy]])
 
-  @targetName("sortByWithTuple1")
-  inline transparent def sortBy(fn: T => OrderBy): QueryBuilder[T] =
-    sortBy(s => Tuple1(fn(s)))
+object QueryBuilder:
 
-  def limitBy(limit: Int, offset: Int = 0): QueryBuilder[T] =
-    copy(limit = Some(limit), offset = offset)
+  type WidenScopeType[T <: Scope] <: Scope = T match
+    case NamedExpression[t, n] => NamedExpression[t, n]
+    case Expression[t] => Expression[t]
+    case _ => T
 
-  def count = map{ _ => CountAll() }
+  extension [E <: Expression[?]](qb: QueryBuilder[E])
+    def sorted(desc: Boolean): QueryBuilder[E] =
+      val newOrderBy = if desc then Desc(qb.scope) else Asc(qb.scope)
+      qb.copy(orderBy = List(newOrderBy))
+
+    def sorted: QueryBuilder[E] = sorted(desc = false)
 
 end QueryBuilder
 
 
-transparent inline def from[T <: Table](table: T) =
-  val relation = TableRelation(table)
-  QueryBuilderFactory.fromObject(relation)
+def from[T <: Table](table: T) =
+  val rel = FromRelation(table)
+  val scope = TableScope(rel)
+  QueryBuilder(scope, rel)

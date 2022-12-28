@@ -113,71 +113,96 @@ class GenericSqlTranslatorTest extends UnitTest:
   }
 
 
-  test("map to Tuple2 ++ Tuple2") {
-    val query = translator.translate(
-        from(MyTable).map{ t => (t.id, t.firstName) ++ (t.lastName, t.age) }
-      )
+  // test("map to Tuple2 ++ Tuple2") {
+  //   val query = translator.translate(
+  //       from(MyTable).map{ t => (t.id, t.firstName) ++ (t.lastName, t.age) }
+  //     )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
-         |FROM `my_table`""".stripMargin,
-    )
-  }
+  //   assertEquals(
+  //     query,
+  //     """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
+  //        |FROM `my_table`""".stripMargin,
+  //   )
+  // }
 
 
   test("map to Scope :* Expression") {
     val query = translator.translate(
-        from(MyTable).map{ t => t :* (2 * t.age).as("doubleAge") }
+        from(MyTable)
+          .map{ t => (t.id, t.age) }
+          .map{ t => t :* (2 * t.age).as("doubleAge") }
       )
 
     assertEquals(query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`, 2 * `my_table`.`age` AS `doubleAge`
-         |FROM `my_table`""".stripMargin)
+      """|SELECT `my_table_2`.`id`, `my_table_2`.`age`, 2 * `my_table_2`.`age` AS `doubleAge`
+         |FROM (
+         |  SELECT `my_table_1`.`id`, `my_table_1`.`age`
+         |  FROM `my_table` `my_table_1`
+         |) `my_table_2`""".stripMargin)
   }
 
 
   test("map to Expression *: Scope") {
     val query = translator.translate(
-        from(MyTable).map{ t => (2 * t.age).as("doubleAge") *: t }
+        from(MyTable)
+          .map{ t => (t.id, t.age) }
+          .map{ t => (2 * t.age).as("doubleAge") *: t }
       )
 
     assertEquals(query,
-      """|SELECT 2 * `my_table`.`age` AS `doubleAge`, `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
-         |FROM `my_table`""".stripMargin)
+      """|SELECT 2 * `my_table_2`.`age` AS `doubleAge`, `my_table_2`.`id`, `my_table_2`.`age`
+         |FROM (
+         |  SELECT `my_table_1`.`id`, `my_table_1`.`age`
+         |  FROM `my_table` `my_table_1`
+         |) `my_table_2`""".stripMargin)
   }
 
 
   test("map to Scope ++ Tuple") {
     val query = translator.translate(
-        from(MyTable).map{ t => t ++ (t.id.as("id2"), t.firstName.as("fn2")) }
+        from(MyTable)
+          .map{ t => (t.id, t.firstName) }
+          .map{ t => t ++ (t.id.as("id2"), t.firstName.as("fn2")) }
       )
 
     assertEquals(query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`, `my_table`.`id` AS `id2`, `my_table`.`first_name` AS `fn2`
-         |FROM `my_table`""".stripMargin)
+      """|SELECT `my_table_2`.`id`, `my_table_2`.`first_name`, `my_table_2`.`id` AS `id2`, `my_table_2`.`first_name` AS `fn2`
+         |FROM (
+         |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name`
+         |  FROM `my_table` `my_table_1`
+         |) `my_table_2`""".stripMargin)
   }
 
 
   test("map to Tuple ++ Scope") {
     val query = translator.translate(
-        from(MyTable).map{ t => (t.id.as("id2"), t.firstName.as("fn2")) ++ t }
+        from(MyTable)
+          .map{ t => (t.id, t.firstName) }
+          .map{ t => (t.id.as("id2"), t.firstName.as("fn2")) ++ t }
       )
 
     assertEquals(query,
-      """|SELECT `my_table`.`id` AS `id2`, `my_table`.`first_name` AS `fn2`, `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
-         |FROM `my_table`""".stripMargin)
+      """|SELECT `my_table_2`.`id` AS `id2`, `my_table_2`.`first_name` AS `fn2`, `my_table_2`.`id`, `my_table_2`.`first_name`
+         |FROM (
+         |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name`
+         |  FROM `my_table` `my_table_1`
+         |) `my_table_2`""".stripMargin)
   }
 
 
   test("overwrite scope member") {
     val query = translator.translate(
-        from(MyTable).map{ t => t :* t.firstName.as("id") }
+        from(MyTable)
+          .map{ t => (t.id, t.firstName) }
+          .map{ t => t :* t.firstName.as("id") }
       )
 
     assertEquals(query,
-      """|SELECT `my_table`.`first_name` AS `id`, `my_table`.`first_name`, `my_table`.`last_name`, `my_table`.`age`
-         |FROM `my_table`""".stripMargin)
+      """|SELECT `my_table_2`.`first_name` AS `id`, `my_table_2`.`first_name`
+         |FROM (
+         |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name`
+         |  FROM `my_table` `my_table_1`
+         |) `my_table_2`""".stripMargin)
   }
 
 

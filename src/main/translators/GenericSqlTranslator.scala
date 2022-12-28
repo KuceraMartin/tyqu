@@ -8,24 +8,25 @@ import tyqu.*
 
 class GenericSqlTranslator(platform: Platform):
 
-  private def collectRelations(qb: QueryBuilder[_]): Seq[Relation] =
+  private def collectRelations(qb: QueryBuilder[_], withSubqueries: Boolean = true): Seq[Relation] =
     def fromExpression(e: Expression[_]): Seq[Relation] =
       e match
         case ColumnValue(_, relation) => List(relation)
-        case SubqueryExpression(qb) => collectRelations(qb)
+        case SubqueryExpression(qb) => if withSubqueries then collectRelations(qb) else Nil
         case Function(_, args) => args.flatMap(fromExpression)
         case p: Product =>
           p.productIterator.collect{ case e: Expression[_] => e }.flatMap(fromExpression).toSeq
 
     List(
       qb.from match
-        case SubqueryRelation(qb2) => collectRelations(qb2)
-        case _: TableRelation => Nil,
+        case SubqueryRelation(qb2) => if withSubqueries then collectRelations(qb2) else Nil
+        case _: TableRelation[?] => Nil,
 
       List(qb.from),
 
       qb.scope match
-        case t: TupleScope => t._toList.flatMap(fromExpression)
+        case t: TupleScope => t.toList.flatMap(fromExpression)
+        case t: TableScope[_] => List(t.relation)
         case e: Expression[_] => fromExpression(e),
 
       qb.where.flatMap(fromExpression),
@@ -37,6 +38,7 @@ class GenericSqlTranslator(platform: Platform):
         }
         .flatMap(fromExpression),
     ).flatten
+
 
   def translate(qb: QueryBuilder[_]): String =
     val (counter, aliases) = collectRelations(qb).foldLeft((Map[String, Int](), Map[Relation, String]())){ (acc, relation) =>
@@ -58,18 +60,22 @@ class GenericSqlTranslator(platform: Platform):
         else
           (relation, alias)
       },
+      indent = false
     )
 
 
-  def doTranslate(qb: QueryBuilder[_], tableAliases: Map[Relation, String], indent: Int = 0): String =
+  private def doTranslate(qb: QueryBuilder[_], tableAliases: Map[Relation, String], inScope: Set[Relation] = Set.empty, indent: Boolean = true): String =
+    val relations = collectRelations(qb, withSubqueries = false).toSet
+    val newInScope = inScope ++ relations
 
     def translateSelectSope(scope: Scope) =
-      (scope match
-        case expr: Expression[_] => translateSelectExpression(expr)
-        case tuple: TupleScope =>
-          if (tuple._isSelectStar) f"${platform.formatIdentifier(tableAliases(qb.from))}.*"
-          else tuple._toList.map(translateSelectExpression).mkString(", ")
-      )
+      scope match
+        case expr: Expression[_] =>
+          translateSelectExpression(expr)
+        case scope: TupleScope =>
+          scope.toList.map(translateSelectExpression).mkString(", ")
+        case scope: TableScope[_] =>
+          f"${platform.formatIdentifier(tableAliases(scope.relation))}.*"
 
 
     def translateSelectExpression(select: Expression[_]): String = select match
@@ -78,14 +84,33 @@ class GenericSqlTranslator(platform: Platform):
       case _ => translateExpression(select)
 
 
-    def translateFromRelation(relation: Relation): String = relation match
-      case TableRelation(table) =>
-        platform.formatIdentifier(table._name) + (
-          if (table._name == tableAliases(relation)) ""
+    def translateFromTableClause(relation: Relation): String =
+      platform.formatIdentifier(relation.underlyingName) + (
+          if (relation.underlyingName == tableAliases(relation)) ""
           else " " + platform.formatIdentifier(tableAliases(relation))
         )
+
+    def translateFromRelation(relation: Relation): String = relation match
+      case r: TableRelation[?] =>
+        translateFromTableClause(r)
       case SubqueryRelation(qb) =>
-        f"(\n${doTranslate(qb, tableAliases, indent + 1)}\n) ${platform.formatIdentifier(tableAliases(relation))}"
+        f"(\n${doTranslate(qb, tableAliases, newInScope)}\n) ${platform.formatIdentifier(tableAliases(relation))}"
+
+
+    def translateFrom(scope: Scope) = scope match
+      case s: TableScope[?] => platform.formatIdentifier(tableAliases(s.relation))
+      case _ => "TODO"
+
+
+    def translateJoinRelation(join: JoinRelation[?]): String =
+      val joinClause = join.joinType match
+        case JoinType.Inner => "JOIN"
+        case JoinType.Left => "LEFT JOIN"
+        case JoinType.Right => "RIGHT JOIN"
+        case JoinType.FullOuter => "FULL OUTER JOIN"
+
+      f"$joinClause ${translateFromTableClause(join)} ON ${translateExpression(join.on(join))}"
+
 
     def translateOrderByExpression(ord: OrderBy) = ord match
       case Asc(expr) => translateExpression(expr) + " ASC"
@@ -101,7 +126,7 @@ class GenericSqlTranslator(platform: Platform):
         platform.formatIdentifier(name)
       
       case SubqueryExpression(qb: QueryBuilder[?]) =>
-        f"(\n${doTranslate(qb, tableAliases, indent + 1)}\n)"
+        f"(\n${doTranslate(qb, tableAliases, newInScope)}\n)"
 
       case LiteralExpression(value: Numeric) =>
         value.toString
@@ -122,6 +147,9 @@ class GenericSqlTranslator(platform: Platform):
       case Not(expr) =>
         val tr = wrapInBraces[And | Or | Not](expr)
         f"NOT $tr"
+
+      case Exists(subquery) =>
+        f"EXISTS ${translateExpression(subquery)}"
 
       case CountAll() =>
         "COUNT(*)"
@@ -159,12 +187,25 @@ class GenericSqlTranslator(platform: Platform):
         case _: T => f"($translated)"
         case _ => translated
 
-    List(
+
+    val (from, join) =
+      relations
+        .filterNot(inScope.contains)
+        .foldLeft((List[Relation](), List[JoinRelation[?]]())) { (acc, rel) =>
+          val (from, join) = acc
+          rel match
+            case r: (FromRelation[?] | SubqueryRelation) => (r :: from, join)
+            case r: JoinRelation[?] => (from, r :: join)
+        }
+
+    val res = List(
       Some("SELECT " + translateSelectSope(qb.scope)),
 
       Some(
-        f"FROM ${translateFromRelation(qb.from)}"
+        f"FROM ${from.map(translateFromRelation).mkString(", ")}"
       ),
+
+      join.map(translateJoinRelation),
 
       qb.where.map("WHERE " + translateExpression(_)),
 
@@ -176,4 +217,9 @@ class GenericSqlTranslator(platform: Platform):
       if (qb.offset > 0) Some(f"OFFSET ${qb.offset}")
       else None,
 
-    ).flatten.map("  " * indent + _).mkString("\n")
+    ).flatten.mkString("\n")
+
+    if indent then
+      res.split("\n").map("  " + _).mkString("\n")
+    else
+      res

@@ -1,7 +1,5 @@
 package tyqu
 
-import utils.checkTupleOf
-
 
 def camelToSnakeCase(s: String): String =
   if (s.isBlank) ""
@@ -14,11 +12,40 @@ def camelToSnakeCase(s: String): String =
 abstract class Table(
   translateIdentifier: String => String = camelToSnakeCase,
 ):
-  val _name = translateIdentifier(getClass.getSimpleName.stripSuffix("$"))
-  def _getColumnName(property: String) = translateIdentifier(property)
+  private[tyqu] val tableName = translateIdentifier(getClass.getSimpleName.stripSuffix("$"))
+
+  private[tyqu] def getColumnName(property: String) = translateIdentifier(property)
+
+  private[tyqu] lazy val columns = colToExpr.keys
+
+  private[tyqu] lazy val pk = columns.find(_.primary).get
+
+  private[tyqu] lazy val colToName: Map[Column[?], String] =
+    getClass.getDeclaredMethods.collect { m =>
+      m.getReturnType.getName match
+        case "tyqu.Column" if m.getParameterCount() == 0 =>
+          val col = m.invoke(this).asInstanceOf[Column[?]]
+          (col -> m.getName)
+    }.toMap
+
+  private[tyqu] lazy val colToExpr: Map[Column[?], TableRelation[this.type] => ColumnValue[?, ?]] =
+    colToName.map { (col, name) =>
+      val expr = (rel: Relation) => createColumnValue(col, name, rel)
+      (col -> expr)
+    }
+
+  private def createColumnValue[ReadType](col: Column[ReadType], name: String, rel: Relation) =
+    ColumnValue[ReadType, name.type](name, rel)
 
 
 // , WriteType <: ReadType | Null
 case class Column[ReadType](
   primary: Boolean = false,
-)
+):
+  override def equals(x: Any): Boolean = x match
+    case c: Column[ReadType] => eq(c)
+    case _ => false
+
+case class ManyToOne[T <: Table](target: T, through: Column[?])
+case class OneToMany[T <: Table](sourceTable: T, sourceProp: ManyToOne[?])
+case class ManyToMany[T <: Table](target: T, joiningTable: Table, sourceColumn: Column[?], targetColumn: Column[?])
