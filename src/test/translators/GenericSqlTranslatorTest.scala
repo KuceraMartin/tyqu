@@ -321,7 +321,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("limit") {
     val query = translator.translate(
-        from(MyTable).limitBy(10)
+        from(MyTable).limit(10)
       )
 
       assertEquals(query,
@@ -333,7 +333,9 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("limit and offset") {
     val query = translator.translate(
-        from(MyTable).limitBy(15, 20)
+        from(MyTable)
+          .limit(15)
+          .offset(20)
       )
 
       assertEquals(query,
@@ -349,7 +351,8 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).filter{ _.age >= 18 }
                    .map{ t => (t.id, (t.firstName + " " + t.lastName).as("name")) }
                    .sortBy{ t => (t.name.asc, t.id.desc) }
-                   .limitBy(5, 10)
+                   .limit(5)
+                   .offset(10)
       )
 
     assertEquals(query,

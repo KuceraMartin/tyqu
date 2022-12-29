@@ -16,23 +16,27 @@ abstract class Table(
 
   private[tyqu] def getColumnName(property: String) = translateIdentifier(property)
 
-  private[tyqu] lazy val columns = colToExpr.keys
-
-  private[tyqu] lazy val pk = columns.find(_.primary).get
-
-  private[tyqu] lazy val colToName: Map[Column[?], String] =
+  private lazy val columnsWithNames: Seq[(Column[?], String)] =
     getClass.getDeclaredMethods.collect { m =>
       m.getReturnType.getName match
         case "tyqu.Column" if m.getParameterCount() == 0 =>
           val col = m.invoke(this).asInstanceOf[Column[?]]
-          (col -> m.getName)
-    }.toMap
+          (col, m.getName)
+    }
+
+  private[tyqu] lazy val columns: Seq[Column[?]] =
+    columnsWithNames.map(_._1)
+
+  private[tyqu] lazy val colToName: Map[Column[?], String] =
+    columnsWithNames.toMap
 
   private[tyqu] lazy val colToExpr: Map[Column[?], TableRelation[this.type] => ColumnValue[?, ?]] =
     colToName.map { (col, name) =>
       val expr = (rel: Relation) => createColumnValue(col, name, rel)
       (col -> expr)
     }
+
+  private[tyqu] lazy val pk = columns.find(_.primary).get
 
   private def createColumnValue[ReadType](col: Column[ReadType], name: String, rel: Relation) =
     ColumnValue[ReadType, name.type](name, rel)

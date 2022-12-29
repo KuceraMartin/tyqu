@@ -58,6 +58,9 @@ class TableScope[T <: Table](
 
   private[tyqu] def pk = relation.pk
 
+  private [tyqu] def toList: List[ColumnValue[?, ?]] =
+    relation.table.columns.map(relation.colToExpr).toList
+
   def selectDynamic(name: String): Any =
     relation.table.getClass.getMethod(name).invoke(relation.table) match
       case c: Column[_] =>

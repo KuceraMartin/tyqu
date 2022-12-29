@@ -30,10 +30,27 @@ case class QueryBuilder[T <: Scope](
       case o: OrderBy => List(o)
     copy(orderBy = newOrderBy)
 
-  def limitBy(limit: Int, offset: Int = 0): QueryBuilder[T] =
-    copy(limit = Some(limit), offset = offset)
+  def sorted(desc: Boolean): QueryBuilder[T] =
+      // val newOrderBy = if desc then Desc(qb.scope) else Asc(qb.scope)
+      val newOrderBy =
+        (scope match
+            case e: Expression[?] => List(e)
+            case s: TupleScope => s.toList
+            case s: TableScope[?] => s.toList
+        ).map(e => if desc then e.desc else e.asc)
+      copy(orderBy = newOrderBy)
 
-  def count = copy(scope = CountAll(), isMapped = true)
+  def sorted: QueryBuilder[T] =
+    sorted(desc = false)
+
+  def limit(v: Int): QueryBuilder[T] =
+    copy(limit = Some(v))
+
+  def offset(v: Int): QueryBuilder[T] =
+    copy(offset = v)
+
+  def count =
+    copy(scope = CountAll(), isMapped = true)
 
   private def prepareMap =
     if isMapped then
@@ -60,13 +77,6 @@ object QueryBuilder:
     case NamedExpression[t, n] => NamedExpression[t, n]
     case Expression[t] => Expression[t]
     case _ => T
-
-  extension [E <: Expression[?]](qb: QueryBuilder[E])
-    def sorted(desc: Boolean): QueryBuilder[E] =
-      val newOrderBy = if desc then Desc(qb.scope) else Asc(qb.scope)
-      qb.copy(orderBy = List(newOrderBy))
-
-    def sorted: QueryBuilder[E] = sorted(desc = false)
 
 end QueryBuilder
 
