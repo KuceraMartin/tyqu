@@ -5,7 +5,7 @@ import scala.annotation.tailrec
 
 
 trait RefinedScope[S <: Scope]:
-    type Refined
+  type Refined
 
 object RefinedScope:
  transparent inline given refinedScope[T <: Table]: RefinedScope[TableScope[T]] = ${ refinedScopeImpl[T] }
@@ -41,7 +41,7 @@ object ScopeFactory:
   transparent inline def concatRight[S <: TupleScope, T <: Tuple](inline scope: S, inline tuple: T) = ${concatRightImpl[S, T]('scope, 'tuple)}
 
   private def concatRightImpl[S <: TupleScope : Type, T <: Tuple : Type](scope: Expr[S], tuple: Expr[T])(using Quotes) =
-    val newItems = '{ replaceOrAppend($scope._items, $tuple) }
+    val newItems = '{ replaceOrAppend($scope.items, $tuple) }
     refine[T, S] match
       case '[ScopeSubtype[t]] => '{ TupleScope($newItems).asInstanceOf[t] }
 
@@ -49,7 +49,7 @@ object ScopeFactory:
   transparent inline def concatLeft[T <: Tuple, S <: TupleScope](inline tuple: T, inline scope: S) = ${concatLeftImpl[T, S]('tuple, 'scope)}
 
   private def concatLeftImpl[T <: Tuple : Type, S <: TupleScope : Type](tuple: Expr[T], scope: Expr[S])(using Quotes) =
-    val newItems = '{ replaceOrPrepend($scope._items, $tuple) }
+    val newItems = '{ replaceOrPrepend($scope.items, $tuple) }
     refine[T, S] match
       case '[ScopeSubtype[t]] => '{ TupleScope($newItems).asInstanceOf[t] }
 

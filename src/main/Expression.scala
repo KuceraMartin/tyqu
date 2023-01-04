@@ -41,7 +41,7 @@ abstract sealed class Expression[T]:
   infix def ===(rhs: Expression[T]) = Function[Boolean]("=", List(this, rhs))
   infix def =!=(rhs: Expression[T]) = Function[Boolean]("!=", List(this, rhs))
 
-  def concat(rhs: Expression[_]) =
+  def concat(rhs: Expression[?]) =
     Function[String]("CONCAT", List(this, rhs).flatMap{
       case Function("CONCAT", exprs) => exprs
       case expr => List(expr)
@@ -62,7 +62,7 @@ case class SubqueryExpression[T, E <: Expression[T]](qb: QueryBuilder[E]) extend
 
 case class LiteralExpression[T](value: T) extends Expression[T]
 
-case class Function[T](name: String, arguments: List[Expression[_]]) extends Expression[T]
+case class Function[T](name: String, arguments: List[Expression[?]]) extends Expression[T]
 
 def lit[T](value: T) = LiteralExpression(value)
 
@@ -104,8 +104,8 @@ extension [T <: Numeric](lhs: Expression[T])
   def sum = Function[Int]("SUM", List(lhs))
 
 
-extension (lhs: Expression[_])
-  infix def +(rhs: Expression[_]) = lhs.concat(rhs)
+extension (lhs: Expression[?])
+  infix def +(rhs: Expression[?]) = lhs.concat(rhs)
 
 
 given Conversion[String, Expression[String]] = LiteralExpression(_)

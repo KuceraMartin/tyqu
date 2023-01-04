@@ -8,14 +8,14 @@ import tyqu.*
 
 class GenericSqlTranslator(platform: Platform):
 
-  private def collectRelations(qb: QueryBuilder[_], withSubqueries: Boolean = true): Seq[Relation] =
-    def fromExpression(e: Expression[_]): Seq[Relation] =
+  private def collectRelations(qb: QueryBuilder[?], withSubqueries: Boolean = true): Seq[Relation] =
+    def fromExpression(e: Expression[?]): Seq[Relation] =
       e match
         case ColumnValue(_, relation) => List(relation)
         case SubqueryExpression(qb) => if withSubqueries then collectRelations(qb) else Nil
         case Function(_, args) => args.flatMap(fromExpression)
         case p: Product =>
-          p.productIterator.collect{ case e: Expression[_] => e }.flatMap(fromExpression).toSeq
+          p.productIterator.collect{ case e: Expression[?] => e }.flatMap(fromExpression).toSeq
 
     List(
       qb.from match
@@ -26,13 +26,13 @@ class GenericSqlTranslator(platform: Platform):
 
       qb.scope match
         case t: TupleScope => t.toList.flatMap(fromExpression)
-        case t: TableScope[_] => List(t.relation)
-        case e: Expression[_] => fromExpression(e),
+        case t: TableScope[?] => List(t.relation)
+        case e: Expression[?] => fromExpression(e),
 
       qb.where.flatMap(fromExpression),
 
       qb.orderBy.map{
-          case e: Expression[_] => e
+          case e: Expression[?] => e
           case Asc(e) => e
           case Desc(e) => e
         }
@@ -40,7 +40,7 @@ class GenericSqlTranslator(platform: Platform):
     ).flatten
 
 
-  def translate(qb: QueryBuilder[_]): String =
+  def translate(qb: QueryBuilder[?]): String =
     val (counter, aliases) = collectRelations(qb).foldLeft((Map[String, Int](), Map[Relation, String]())){ (acc, relation) =>
       val (counter, aliases) = acc
       aliases.get(relation) match
@@ -64,21 +64,21 @@ class GenericSqlTranslator(platform: Platform):
     )
 
 
-  private def doTranslate(qb: QueryBuilder[_], tableAliases: Map[Relation, String], inScope: Set[Relation] = Set.empty, indent: Boolean = true): String =
+  private def doTranslate(qb: QueryBuilder[?], tableAliases: Map[Relation, String], inScope: Set[Relation] = Set.empty, indent: Boolean = true): String =
     val relations = collectRelations(qb, withSubqueries = false).toSet
     val newInScope = inScope ++ relations
 
     def translateSelectSope(scope: Scope) =
       scope match
-        case expr: Expression[_] =>
+        case expr: Expression[?] =>
           translateSelectExpression(expr)
         case scope: TupleScope =>
           scope.toList.map(translateSelectExpression).mkString(", ")
-        case scope: TableScope[_] =>
+        case scope: TableScope[?] =>
           f"${platform.formatIdentifier(tableAliases(scope.relation))}.*"
 
 
-    def translateSelectExpression(select: Expression[_]): String = select match
+    def translateSelectExpression(select: Expression[?]): String = select match
       case Alias(alias, expression) =>
         f"${translateExpression(expression)} AS ${platform.formatIdentifier(alias)}"
       case _ => translateExpression(select)
@@ -95,11 +95,6 @@ class GenericSqlTranslator(platform: Platform):
         translateFromTableClause(r)
       case SubqueryRelation(qb) =>
         f"(\n${doTranslate(qb, tableAliases, newInScope)}\n) ${platform.formatIdentifier(tableAliases(relation))}"
-
-
-    def translateFrom(scope: Scope) = scope match
-      case s: TableScope[?] => platform.formatIdentifier(tableAliases(s.relation))
-      case _ => "TODO"
 
 
     def translateJoinRelation(join: JoinRelation[?]): String =
@@ -156,22 +151,22 @@ class GenericSqlTranslator(platform: Platform):
 
       case Plus(lhs, rhs) =>
         val tl = translateExpression(lhs)
-        var tr = wrapInBraces[Plus[_] | Minus[_]](rhs)
+        var tr = wrapInBraces[Plus[?] | Minus[?]](rhs)
         f"${tl} + ${tr}"
 
       case Minus(lhs, rhs) =>
         val tl = translateExpression(lhs)
-        val tr = wrapInBraces[Plus[_] | Minus[_]](rhs)
+        val tr = wrapInBraces[Plus[?] | Minus[?]](rhs)
         f"$tl - $tr"
 
       case Multiply(lhs, rhs) =>
-        val tl = wrapInBraces[Plus[_] | Minus[_]](lhs)
-        val tr = wrapInBraces[Plus[_] | Minus[_] | Multiply[_] | Divide[_]](rhs)
+        val tl = wrapInBraces[Plus[?] | Minus[?]](lhs)
+        val tr = wrapInBraces[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
         f"$tl * $tr"
 
       case Divide(lhs, rhs) =>
         val tl = translateExpression(lhs)
-        val tr = wrapInBraces[Plus[_] | Minus[_] | Multiply[_] | Divide[_]](rhs)
+        val tr = wrapInBraces[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
         f"$tl / $tr"
 
       case Function(name, List(arg1, arg2)) if (platform.isInfixOperator(name)) =>
@@ -181,7 +176,7 @@ class GenericSqlTranslator(platform: Platform):
         f"$name(${lst.map(translateExpression).mkString(", ")})"
 
 
-    def wrapInBraces[T](e: Expression[_])(using TypeTest[Expression[_], T]): String =
+    def wrapInBraces[T](e: Expression[?])(using TypeTest[Expression[?], T]): String =
       val translated = translateExpression(e)
       e match
         case _: T => f"($translated)"
