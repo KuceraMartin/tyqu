@@ -7,7 +7,7 @@ case class QueryBuilder[T <: Scope](
   private[tyqu] scope: T,
   private[tyqu] from: Relation,
   private[tyqu] isMapped: Boolean = false,
-  private[tyqu] where: Option[Expression[Boolean]] = None,
+  private[tyqu] where: Expression[Boolean] = NoFilterExpression,
   private[tyqu] orderBy: List[OrderBy] = List.empty,
   private[tyqu] limit: Option[Int] = None,
   private[tyqu] offset: Int = 0,
@@ -19,7 +19,7 @@ case class QueryBuilder[T <: Scope](
 
   def filter(using ref: RefinedScope[T])(predicate: ref.Refined => Expression[Boolean]): QueryBuilder[T] =
     val expr = predicate(scope.asInstanceOf[ref.Refined])
-    copy(where = Some(where.map(_ && expr).getOrElse(expr)))
+    copy(where = where && expr)
   
   def exists(using ref: RefinedScope[T])(predicate: ref.Refined => Expression[Boolean]): Expression[Boolean] =
     Exists(SubqueryExpression(filter(predicate).map(_ => 1).asInstanceOf))

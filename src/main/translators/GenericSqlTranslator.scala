@@ -29,7 +29,7 @@ class GenericSqlTranslator(platform: Platform):
         case t: TableScope[?] => List(t.relation)
         case e: Expression[?] => fromExpression(e),
 
-      qb.where.flatMap(fromExpression),
+      fromExpression(qb.where),
 
       qb.orderBy.map{
           case e: Expression[?] => e
@@ -202,7 +202,9 @@ class GenericSqlTranslator(platform: Platform):
 
       join.map(translateJoinRelation),
 
-      qb.where.map("WHERE " + translateExpression(_)),
+      qb.where match
+        case NoFilterExpression => None
+        case expr => Some("WHERE " + translateExpression(expr)),
 
       if (qb.orderBy.isEmpty) None
       else Some("ORDER BY " + qb.orderBy.map(translateOrderByExpression).mkString(", ")),

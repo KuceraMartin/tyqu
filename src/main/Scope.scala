@@ -69,7 +69,7 @@ class TableScope[T <: Table](
         val propName = sourceTable.colToName(through)
         val qb = from(sourceTable)
         val expr = qb.scope.selectDynamic(propName).asInstanceOf[Expression[Any]] === pk.asInstanceOf[Expression[Any]]
-        qb.copy(where = Some(expr))
+        qb.copy(where = expr)
       case ManyToMany(targetTable, joiningTable, sourceColumn, targetColumn) =>
         val qb = from(targetTable)
         val targetScope = qb.scope
@@ -78,7 +78,7 @@ class TableScope[T <: Table](
               join.colToExpr(targetColumn).asInstanceOf[Expression[Any]] === targetPk
             })
         val expr = rel.colToExpr(sourceColumn).asInstanceOf[Expression[Any]] === pk.asInstanceOf[Expression[Any]]
-        qb.copy(where = Some(expr))
+        qb.copy(where = expr)
 
       case ManyToOne(target, through) =>
         val throughExpr = relation.colToExpr(through).asInstanceOf[Expression[Any]]
