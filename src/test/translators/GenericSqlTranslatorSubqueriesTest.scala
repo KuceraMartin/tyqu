@@ -227,3 +227,20 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
          |) AS `preceding`
          |FROM `releases` `releases_1`""".stripMargin)
   }
+
+
+  test("exists") {
+    val query = translator.translate(
+      from(Releases).filter(_.artists.exists(_.name === "Radiohead"))
+    )
+
+    assertEquals(query,
+      """|SELECT `releases`.*
+         |FROM `releases`
+         |WHERE EXISTS (
+         |  SELECT 1
+         |  FROM `artists`
+         |  JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
+         |  WHERE `released_by`.`release_id` = `releases`.`id` AND `artists`.`name` = 'Radiohead'
+         |)""".stripMargin)
+  }
