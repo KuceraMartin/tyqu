@@ -16,6 +16,16 @@ case class QueryBuilder[T <: Scope](
     val (originalScope, newQb) = prepareMap
     QueryBuilderFactory.fromMap[ref.Refined & Scope, S, T1, T2](originalScope.asInstanceOf[ref.Refined & Scope], newQb, fn)
 
+  def flatMap[S2 <: Scope](using ref: RefinedScope[T])(fn: ref.Refined => QueryBuilder[S2]): QueryBuilder[S2] =
+    val (originalScope, newQb) = prepareMap
+    val qb2 = fn(originalScope.asInstanceOf[ref.Refined & Scope])
+    QueryBuilder(
+      qb2.scope,
+      from,
+      where = where && qb2.where,
+      orderBy = orderBy ++ qb2.orderBy,
+    )
+
   def filter(using ref: RefinedScope[T])(predicate: ref.Refined => Expression[Boolean]): QueryBuilder[T] =
     val expr = predicate(scope.asInstanceOf[ref.Refined])
     copy(where = where && expr)
@@ -30,7 +40,6 @@ case class QueryBuilder[T <: Scope](
     copy(orderBy = newOrderBy)
 
   def sorted(desc: Boolean): QueryBuilder[T] =
-      // val newOrderBy = if desc then Desc(qb.scope) else Asc(qb.scope)
       val newOrderBy =
         (scope match
             case e: Expression[?] => List(e)

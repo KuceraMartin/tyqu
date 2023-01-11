@@ -201,10 +201,10 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     assertEquals(query,
       """|SELECT `tracks_1`.*
          |FROM `tracks` `tracks_1`
+         |JOIN `releases` ON `tracks_1`.`release_id` = `releases`.`id`
          |ORDER BY (
          |  SELECT COUNT(*)
          |  FROM `tracks` `tracks_2`
-         |  JOIN `releases` ON `tracks_1`.`release_id` = `releases`.`id`
          |  WHERE `tracks_2`.`release_id` = `releases`.`id`
          |) DESC""".stripMargin)
   }
@@ -243,4 +243,39 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
          |  JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
          |  WHERE `released_by`.`release_id` = `releases`.`id` AND `artists`.`name` = 'Radiohead'
          |)""".stripMargin)
+  }
+
+
+  test("simple flatMap") {
+    val query = translator.translate(
+      from(Releases).flatMap{ r => r.artists.map{ a => (a.name, r.title) } }
+    )
+
+    assertEquals(query,
+      """|SELECT `artists`.`name`, `releases`.`title`
+         |FROM
+         |  `releases`,
+         |  `artists`
+         |    JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
+         |WHERE `released_by`.`release_id` = `releases`.`id`""".stripMargin)
+  }
+
+
+  test("complex flatMap") {
+    val query = translator.translate(
+      from(Artists)
+        .filter(_.releases.flatMap(_.tracks).map(_.duration).sum > 10000)
+    )
+
+    assertEquals(query,
+      """|SELECT `artists`.*
+         |FROM `artists`
+         |WHERE SUM(
+         |  SELECT `tracks`.`duration`
+         |  FROM
+         |    `releases`
+         |      JOIN `released_by` ON `released_by`.`release_id` = `releases`.`id`,
+         |    `tracks`
+         |  WHERE `released_by`.`artist_id` = `artists`.`id` AND `tracks`.`release_id` = `releases`.`id`
+         |) > 10000""".stripMargin)
   }

@@ -8,15 +8,15 @@ import tyqu.*
 
 class GenericSqlTranslator(platform: Platform):
 
-  private def collectRelations(qb: QueryBuilder[?], withSubqueries: Boolean = true): Seq[Relation] =
-    def fromExpression(e: Expression[?]): Seq[Relation] =
-      e match
-        case ColumnValue(_, relation) => List(relation)
-        case SubqueryExpression(qb) => if withSubqueries then collectRelations(qb) else Nil
-        case Function(_, args) => args.flatMap(fromExpression)
-        case p: Product =>
-          p.productIterator.collect{ case e: Expression[?] => e }.flatMap(fromExpression).toSeq
+  private def relationsFromExpression(e: Expression[?], withSubqueries: Boolean): Seq[Relation] =
+    e match
+      case ColumnValue(_, relation) => List(relation)
+      case SubqueryExpression(qb) => if withSubqueries then collectRelations(qb) else Nil
+      case Function(_, args) => args.flatMap(relationsFromExpression(_, withSubqueries))
+      case p: Product =>
+        p.productIterator.collect{ case e: Expression[?] => e }.flatMap(relationsFromExpression(_, withSubqueries)).toSeq
 
+  private def collectRelations(qb: QueryBuilder[?], withSubqueries: Boolean = true): Seq[Relation] =
     List(
       qb.from match
         case SubqueryRelation(qb2) => if withSubqueries then collectRelations(qb2) else Nil
@@ -25,18 +25,18 @@ class GenericSqlTranslator(platform: Platform):
       List(qb.from),
 
       qb.scope match
-        case t: TupleScope => t.toList.flatMap(fromExpression)
+        case t: TupleScope => t.toList.flatMap(relationsFromExpression(_, withSubqueries))
         case t: TableScope[?] => List(t.relation)
-        case e: Expression[?] => fromExpression(e),
+        case e: Expression[?] => relationsFromExpression(e, withSubqueries),
 
-      fromExpression(qb.where),
+      relationsFromExpression(qb.where, withSubqueries),
 
       qb.orderBy.map{
           case e: Expression[?] => e
           case Asc(e) => e
           case Desc(e) => e
         }
-        .flatMap(fromExpression),
+        .flatMap(relationsFromExpression(_, withSubqueries)),
     ).flatten
 
 
@@ -64,7 +64,19 @@ class GenericSqlTranslator(platform: Platform):
     )
 
 
-  private def doTranslate(qb: QueryBuilder[?], tableAliases: Map[Relation, String], inScope: Set[Relation] = Set.empty, indent: Boolean = true): String =
+  private def doTranslate(
+    qb: QueryBuilder[?],
+    tableAliases: Map[Relation, String],
+    inScope: Set[Relation] = Set.empty,
+    indent: Boolean = true,
+  ): String =
+    val joinSucc = collectRelations(qb).flatMap{
+        case r: JoinRelation[?] =>
+          val e = r.on(r)
+          relationsFromExpression(e, withSubqueries = true).map{ p => (p -> r) }
+        case _ => Nil
+      }
+      .groupMap(_._1)(_._2)
     val relations = collectRelations(qb, withSubqueries = false).toSet
     val newInScope = inScope ++ relations
 
@@ -90,12 +102,14 @@ class GenericSqlTranslator(platform: Platform):
           else " " + platform.formatIdentifier(tableAliases(relation))
         )
 
-    def translateFromRelation(relation: Relation): String = relation match
-      case r: TableRelation[?] =>
-        translateFromTableClause(r)
-      case SubqueryRelation(qb) =>
-        f"(\n${doTranslate(qb, tableAliases, newInScope)}\n) ${platform.formatIdentifier(tableAliases(relation))}"
-
+    def translateFromRelation(relation: Relation, joins: Seq[JoinRelation[?]], complexFormatting: Boolean = false): String =
+      val indent = if (complexFormatting) "    " else ""
+      val f = relation match
+        case r: TableRelation[?] =>
+          translateFromTableClause(r)
+        case SubqueryRelation(qb) =>
+          f"(\n${doTranslate(qb, tableAliases, newInScope)}\n) ${platform.formatIdentifier(tableAliases(relation))}"
+      (f +: joins.map(translateJoinRelation)).mkString(f"\n$indent")
 
     def translateJoinRelation(join: JoinRelation[?]): String =
       val joinClause = join.joinType match
@@ -188,24 +202,22 @@ class GenericSqlTranslator(platform: Platform):
         case _ => translated
 
 
-    val (from, join) =
-      relations
-        .filterNot(inScope.contains)
-        .foldLeft((List[Relation](), List[JoinRelation[?]]())) { (acc, rel) =>
-          val (from, join) = acc
-          rel match
-            case r: (FromRelation[?] | SubqueryRelation) => (r :: from, join)
-            case r: JoinRelation[?] => (from, r :: join)
-        }
+    val from = relations.collect{
+        case r: (FromRelation[?] | SubqueryRelation) if !inScope.contains(r) =>
+          (r, joinSucc.getOrElse(r, Seq.empty))
+      }
 
     val res = List(
       Some("SELECT " + translateSelectSope(qb.scope)),
 
       Some(
-        f"FROM ${from.map(translateFromRelation).mkString(", ")}"
+        "FROM" + (
+          if (from.size > 1 && from.exists(_._2.nonEmpty))
+            f"\n  ${from.map{ case (r, j) => translateFromRelation(r, j, true) }.mkString(",\n  ")}"
+          else
+            f" ${from.map{ case (r, j) => translateFromRelation(r, j, false) }.mkString(", ")}"
+        )
       ),
-
-      join.map(translateJoinRelation),
 
       qb.where match
         case NoFilterExpression => None
