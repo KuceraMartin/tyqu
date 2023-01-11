@@ -23,9 +23,9 @@ object QueryBuilderFactory:
       val selection = '{$fn($originalScope)}.asExprOf[T]
       ScopeFactory.refine[T, TupleScope] match
         case '[ScopeSubtype[t]] =>
-          '{ $newQb.copy(scope = TupleScope($selection), isMapped = true).asInstanceOf[QueryBuilder[t]] }
+          '{ $newQb.copy(scope = TupleScope($selection)).asInstanceOf[QueryBuilder[t]] }
     else
       '{
         val newScope = $fn($originalScope).asInstanceOf[S]
-        $newQb.copy(scope = newScope.asInstanceOf[QueryBuilder.WidenScopeType[newScope.type]], isMapped = true)
+        $newQb.copy(scope = newScope.asInstanceOf[QueryBuilder.WidenScopeType[newScope.type]])
       }

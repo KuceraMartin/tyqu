@@ -6,7 +6,6 @@ import utils.checkTupleOrInstanceOf
 case class QueryBuilder[T <: Scope](
   private[tyqu] scope: T,
   private[tyqu] from: Relation,
-  private[tyqu] isMapped: Boolean = false,
   private[tyqu] where: Expression[Boolean] = NoFilterExpression,
   private[tyqu] orderBy: List[OrderBy] = List.empty,
   private[tyqu] limit: Option[Int] = None,
@@ -50,10 +49,12 @@ case class QueryBuilder[T <: Scope](
     copy(offset = v)
 
   def count =
-    copy(scope = CountAll(), isMapped = true)
+    copy(scope = CountAll())
 
   private def prepareMap =
-    if isMapped then
+    if scope.isInstanceOf[TableScope[?]] then
+      (scope, this)
+    else
       // if we have only one value in scope -> name it so that it can be accessed
       val originalScope = scope match
           case e: Expression[t] => e.as("v")
@@ -65,8 +66,6 @@ case class QueryBuilder[T <: Scope](
         ).asInstanceOf[T]
       val newQb = new QueryBuilder(newScope, newRelation)
       (newScope, newQb)
-    else
-      (scope, this)
 
 end QueryBuilder
 
