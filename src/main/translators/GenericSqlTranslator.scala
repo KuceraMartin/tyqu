@@ -132,17 +132,17 @@ class GenericSqlTranslator(platform: Platform):
           f"'${value.toString}'"
 
         case And(lhs, rhs) =>
-          val tl = wrapInBraces[Or](lhs)
-          val tr = wrapInBraces[And | Or](rhs)
+          val tl = wrapInParentheses[Or](lhs)
+          val tr = wrapInParentheses[And | Or](rhs)
           f"$tl AND $tr"
 
         case Or(lhs, rhs) =>
-          val tl = wrapInBraces[And](lhs)
-          val tr = wrapInBraces[And | Or](rhs)
+          val tl = wrapInParentheses[And](lhs)
+          val tr = wrapInParentheses[And | Or](rhs)
           f"$tl OR $tr"
 
         case Not(expr) =>
-          val tr = wrapInBraces[And | Or | Not](expr)
+          val tr = wrapInParentheses[And | Or | Not](expr)
           f"NOT $tr"
 
         case Exists(subquery) =>
@@ -153,22 +153,22 @@ class GenericSqlTranslator(platform: Platform):
 
         case Plus(lhs, rhs) =>
           val tl = translateExpression(lhs)
-          var tr = wrapInBraces[Plus[?] | Minus[?]](rhs)
+          var tr = wrapInParentheses[Plus[?] | Minus[?]](rhs)
           f"${tl} + ${tr}"
 
         case Minus(lhs, rhs) =>
           val tl = translateExpression(lhs)
-          val tr = wrapInBraces[Plus[?] | Minus[?]](rhs)
+          val tr = wrapInParentheses[Plus[?] | Minus[?]](rhs)
           f"$tl - $tr"
 
         case Multiply(lhs, rhs) =>
-          val tl = wrapInBraces[Plus[?] | Minus[?]](lhs)
-          val tr = wrapInBraces[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
+          val tl = wrapInParentheses[Plus[?] | Minus[?]](lhs)
+          val tr = wrapInParentheses[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
           f"$tl * $tr"
 
         case Divide(lhs, rhs) =>
           val tl = translateExpression(lhs)
-          val tr = wrapInBraces[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
+          val tr = wrapInParentheses[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
           f"$tl / $tr"
 
         case Function(name, List(arg1)) =>
@@ -181,7 +181,7 @@ class GenericSqlTranslator(platform: Platform):
           f"$name(${lst.map(translateExpression(_)).mkString(", ")})"
 
 
-    def wrapInBraces[T](e: Expression[?])(using TypeTest[Expression[?], T]): String =
+    def wrapInParentheses[T](e: Expression[?])(using TypeTest[Expression[?], T]): String =
       val translated = translateExpression(e)
       e match
         case _: T => f"($translated)"
