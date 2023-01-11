@@ -113,67 +113,72 @@ class GenericSqlTranslator(platform: Platform):
       case expr: Expression[?] => translateExpression(expr)
 
 
-    def translateExpression(expr: Expression[?]): String = expr match
-      case ColumnValue(name, relation) =>
-        platform.formatIdentifier(tableAliases(relation)) + "." + platform.formatIdentifier(relation.getColumnName(name))
+    def translateExpression(expr: Expression[?], inParentheses: Boolean = false): String =
+      expr match
+        case ColumnValue(name, relation) =>
+          platform.formatIdentifier(tableAliases(relation)) + "." + platform.formatIdentifier(relation.getColumnName(name))
 
-      case Alias(name, _) =>
-        platform.formatIdentifier(name)
-      
-      case SubqueryExpression(qb: QueryBuilder[?]) =>
-        f"(\n${doTranslate(qb, tableAliases, newInScope)}\n)"
+        case Alias(name, _) =>
+          platform.formatIdentifier(name)
 
-      case LiteralExpression(value: Numeric) =>
-        value.toString
+        case SubqueryExpression(qb: QueryBuilder[?]) =>
+          val (lb, rb) = if (inParentheses) ("", "") else ("(", ")")
+          f"$lb\n${doTranslate(qb, tableAliases, newInScope)}\n$rb"
 
-      case LiteralExpression(value) =>
-        f"'${value.toString}'"
+        case LiteralExpression(value: Numeric) =>
+          value.toString
 
-      case And(lhs, rhs) =>
-        val tl = wrapInBraces[Or](lhs)
-        val tr = wrapInBraces[And | Or](rhs)
-        f"$tl AND $tr"
+        case LiteralExpression(value) =>
+          f"'${value.toString}'"
 
-      case Or(lhs, rhs) =>
-        val tl = wrapInBraces[And](lhs)
-        val tr = wrapInBraces[And | Or](rhs)
-        f"$tl OR $tr"
+        case And(lhs, rhs) =>
+          val tl = wrapInBraces[Or](lhs)
+          val tr = wrapInBraces[And | Or](rhs)
+          f"$tl AND $tr"
 
-      case Not(expr) =>
-        val tr = wrapInBraces[And | Or | Not](expr)
-        f"NOT $tr"
+        case Or(lhs, rhs) =>
+          val tl = wrapInBraces[And](lhs)
+          val tr = wrapInBraces[And | Or](rhs)
+          f"$tl OR $tr"
 
-      case Exists(subquery) =>
-        f"EXISTS ${translateExpression(subquery)}"
+        case Not(expr) =>
+          val tr = wrapInBraces[And | Or | Not](expr)
+          f"NOT $tr"
 
-      case CountAll() =>
-        "COUNT(*)"
+        case Exists(subquery) =>
+          f"EXISTS ${translateExpression(subquery)}"
 
-      case Plus(lhs, rhs) =>
-        val tl = translateExpression(lhs)
-        var tr = wrapInBraces[Plus[?] | Minus[?]](rhs)
-        f"${tl} + ${tr}"
+        case CountAll() =>
+          "COUNT(*)"
 
-      case Minus(lhs, rhs) =>
-        val tl = translateExpression(lhs)
-        val tr = wrapInBraces[Plus[?] | Minus[?]](rhs)
-        f"$tl - $tr"
+        case Plus(lhs, rhs) =>
+          val tl = translateExpression(lhs)
+          var tr = wrapInBraces[Plus[?] | Minus[?]](rhs)
+          f"${tl} + ${tr}"
 
-      case Multiply(lhs, rhs) =>
-        val tl = wrapInBraces[Plus[?] | Minus[?]](lhs)
-        val tr = wrapInBraces[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
-        f"$tl * $tr"
+        case Minus(lhs, rhs) =>
+          val tl = translateExpression(lhs)
+          val tr = wrapInBraces[Plus[?] | Minus[?]](rhs)
+          f"$tl - $tr"
 
-      case Divide(lhs, rhs) =>
-        val tl = translateExpression(lhs)
-        val tr = wrapInBraces[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
-        f"$tl / $tr"
+        case Multiply(lhs, rhs) =>
+          val tl = wrapInBraces[Plus[?] | Minus[?]](lhs)
+          val tr = wrapInBraces[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
+          f"$tl * $tr"
 
-      case Function(name, List(arg1, arg2)) if (platform.isInfixOperator(name)) =>
-        f"${translateExpression(arg1)} $name ${translateExpression(arg2)}"
+        case Divide(lhs, rhs) =>
+          val tl = translateExpression(lhs)
+          val tr = wrapInBraces[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
+          f"$tl / $tr"
 
-      case Function(name, lst) =>
-        f"$name(${lst.map(translateExpression).mkString(", ")})"
+        case Function(name, List(arg1)) =>
+          f"$name(${translateExpression(arg1, inParentheses = true)})"
+
+        case Function(name, List(arg1, arg2)) if (platform.isInfixOperator(name)) =>
+          f"${translateExpression(arg1)} $name ${translateExpression(arg2)}"
+
+        case Function(name, lst) =>
+          f"$name(${lst.map(translateExpression(_)).mkString(", ")})"
 
 
     def wrapInBraces[T](e: Expression[?])(using TypeTest[Expression[?], T]): String =
