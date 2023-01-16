@@ -1,5 +1,7 @@
 package tyqu
 
+import scala.language.unsafeNulls
+
 import utils.checkTupleOf
 
 

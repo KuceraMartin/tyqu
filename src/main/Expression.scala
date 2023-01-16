@@ -58,6 +58,7 @@ case class Alias[T, N <: String & Singleton](name: N, expression: Expression[T])
 
 case class ColumnValue[T, N <: String & Singleton](name: N, relation: Relation) extends NamedExpression[T, N](name)
 
+// E because the type in QueryBuilder is invariant
 case class SubqueryExpression[T, E <: Expression[T]](qb: QueryBuilder[E]) extends Expression[T]
 
 case class LiteralExpression[T](value: T) extends Expression[T]
@@ -70,14 +71,19 @@ def lit[T](value: T) = LiteralExpression(value)
 case class And(lhs: Expression[Boolean], rhs: Expression[Boolean]) extends Expression[Boolean]
 case class Or(lhs: Expression[Boolean], rhs: Expression[Boolean]) extends Expression[Boolean]
 case class Not(expression: Expression[Boolean]) extends Expression[Boolean]
+case class IsNull[T](expression: Expression[T | Null]) extends Expression[Boolean]
+case class IsNotNull[T](expression: Expression[T | Null]) extends Expression[Boolean]
 case class Exists(subquery: SubqueryExpression[?, ?]) extends Expression[Boolean]
+case class StartsWith(needle: String, haystack: Expression[String]) extends Expression[Boolean]
+case class EndsWith(needle: String, haystack: Expression[String]) extends Expression[Boolean]
+case class Contains(needle: String, haystack: Expression[String]) extends Expression[Boolean]
 
 case class CountAll() extends Expression[Int]
 
-case class Plus[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
-case class Minus[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
-case class Multiply[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
-case class Divide[T](lhs: Expression[T], rhs: Expression[T]) extends Expression[T]
+case class Plus[T1 <: Numeric | Null, T2 <: Numeric | Null](lhs: Expression[T1], rhs: Expression[T2]) extends Expression[T1 | T2]
+case class Minus[T1 <: Numeric | Null, T2 <: Numeric | Null](lhs: Expression[T1], rhs: Expression[T2]) extends Expression[T1 | T2]
+case class Multiply[T1 <: Numeric | Null, T2 <: Numeric | Null](lhs: Expression[T1], rhs: Expression[T2]) extends Expression[T1 | T2]
+case class Divide[T1 <: Numeric | Null, T2 <: Numeric | Null](lhs: Expression[T1], rhs: Expression[T2]) extends Expression[T1 | T2]
 
 
 extension (lhs: Expression[Boolean])
@@ -88,24 +94,31 @@ extension (lhs: Expression[Boolean])
   infix def unary_! = Not(lhs)
 
 
-extension [T <: Numeric](lhs: Expression[T])
-  infix def <(rhs: Expression[T]) = Function[Boolean]("<", List(lhs, rhs))
-  infix def <=(rhs: Expression[T]) = Function[Boolean]("<=", List(lhs, rhs))
-  infix def >(rhs: Expression[T]) = Function[Boolean](">", List(lhs, rhs))
-  infix def >=(rhs: Expression[T]) = Function[Boolean](">=", List(lhs, rhs))
-  infix def +(rhs: Expression[T]) = Plus(lhs, rhs)
-  infix def -(rhs: Expression[T]) = Minus(lhs, rhs)
-  infix def *(rhs: Expression[T]) = Multiply(lhs, rhs)
-  infix def /(rhs: Expression[T]) = Divide(lhs, rhs)
+extension [T <: Numeric | Null] (lhs: Expression[T])
+  infix def <[T2 <: Numeric | Null](rhs: Expression[T2]) = Function[Boolean]("<", List(lhs, rhs))
+  infix def <=[T2 <: Numeric | Null](rhs: Expression[T2]) = Function[Boolean]("<=", List(lhs, rhs))
+  infix def >[T2 <: Numeric | Null](rhs: Expression[T2]) = Function[Boolean](">", List(lhs, rhs))
+  infix def >=[T2 <: Numeric | Null](rhs: Expression[T2]) = Function[Boolean](">=", List(lhs, rhs))
+  infix def +[T2 <: Numeric | Null](rhs: Expression[T2]) = Plus(lhs, rhs)
+  infix def -[T2 <: Numeric | Null](rhs: Expression[T2]) = Minus(lhs, rhs)
+  infix def *[T2 <: Numeric | Null](rhs: Expression[T2]) = Multiply(lhs, rhs)
+  infix def /[T2 <: Numeric | Null](rhs: Expression[T2]) = Divide(lhs, rhs)
 
-  def min: Expression[Int] = Function[Int]("MIN", List(lhs))
-  def max = Function[Int]("MAX", List(lhs))
-  def avg = Function[Int]("AVG", List(lhs))
-  def sum = Function[Int]("SUM", List(lhs))
+
+extension [T] (lhs: Expression[T | Null])
+  def isNull = IsNull(lhs)
+  def isNotNull = IsNotNull(lhs)
+  def getOrElse[T2](fallback: Expression[T2]) = Function[T | T2]("COALESCE", List(lhs, fallback))
 
 
 extension (lhs: Expression[?])
   infix def +(rhs: Expression[?]) = lhs.concat(rhs)
+
+
+extension (lhs: Expression[String])
+  def startsWith(rhs: String) = StartsWith(needle = rhs, haystack = lhs)
+  def endsWith(rhs: String) = EndsWith(needle = rhs, haystack = lhs)
+  def contains(rhs: String) = Contains(needle = rhs, haystack = lhs)
 
 
 given Conversion[String, Expression[String]] = LiteralExpression(_)

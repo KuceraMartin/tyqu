@@ -79,6 +79,20 @@ case class QueryBuilder[T <: Scope](
 end QueryBuilder
 
 
+extension [T <: Numeric | Null, E <: Expression[T]] (qb: QueryBuilder[E])
+  def sum =
+    qb.copy(scope = Function[T | Null]("SUM", List(qb.scope)))
+
+  def min =
+    qb.copy(scope = Function[T | Null]("MIN", List(qb.scope)))
+
+  def max =
+    qb.copy(scope = Function[T | Null]("MAX", List(qb.scope)))
+
+  def avg =
+    qb.copy(scope = Function[T | Null]("AVG", List(qb.scope)))
+
+
 object QueryBuilder:
 
   type WidenScopeType[T <: Scope] <: Scope = T match

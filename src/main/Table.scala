@@ -1,5 +1,7 @@
 package tyqu
 
+import scala.language.unsafeNulls
+
 
 def camelToSnakeCase(s: String): String =
   if (s.isBlank) ""
@@ -17,7 +19,7 @@ abstract class Table(
   private[tyqu] def getColumnName(property: String) = translateIdentifier(property)
 
   private lazy val columnsWithNames: Seq[(Column[?], String)] =
-    getClass.getDeclaredMethods.collect { m =>
+    getClass.getDeclaredMethods.collect{ m =>
       m.getReturnType.getName match
         case "tyqu.Column" if m.getParameterCount() == 0 =>
           val col = m.invoke(this).asInstanceOf[Column[?]]
