@@ -5,9 +5,11 @@ import scala.reflect.TypeTest
 
 import tyqu.platforms.Platform
 import tyqu.*
+import tyqu.platforms.PostgreSqlPlatform
+import tyqu.platforms.MySqlPlatform
 
 
-class GenericSqlTranslator(platform: Platform):
+class GenericSqlTranslator(platform: Platform) extends Translator:
 
   private def relationsFromExpression(e: Expression[?], withSubqueries: Boolean): Seq[Relation] =
     e match
@@ -213,6 +215,8 @@ class GenericSqlTranslator(platform: Platform):
         case Function(name, lst) =>
           f"$name(${lst.map(translateExpression(_)).mkString(", ")})"
 
+    end translateExpression
+
 
     def wrapInParentheses[T](e: Expression[?])(using TypeTest[Expression[?], T]): String =
       val translated = translateExpression(e)
@@ -231,7 +235,7 @@ class GenericSqlTranslator(platform: Platform):
 
       Some(
         "FROM" + (
-          if (from.size > 1 && from.exists(_._2.nonEmpty))
+          if from.size > 1 && from.exists(_._2.nonEmpty) then
             f"\n  ${from.map{ case (r, j) => translateFromRelation(r, j, true) }.mkString(",\n  ")}"
           else
             f" ${from.map{ case (r, j) => translateFromRelation(r, j, false) }.mkString(", ")}"
@@ -256,3 +260,9 @@ class GenericSqlTranslator(platform: Platform):
       res.split("\n").map("  " + _).mkString("\n")
     else
       res
+
+end GenericSqlTranslator
+
+
+object MySqlTranslator extends GenericSqlTranslator(MySqlPlatform)
+object PostgreSqlTranslator extends GenericSqlTranslator(PostgreSqlPlatform)
