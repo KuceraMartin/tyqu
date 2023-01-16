@@ -1,5 +1,6 @@
 package tyqu.translators
 
+import scala.language.unsafeNulls
 import scala.reflect.TypeTest
 
 import tyqu.platforms.Platform
@@ -143,7 +144,7 @@ class GenericSqlTranslator(platform: Platform):
           value.toString
 
         case LiteralExpression(value) =>
-          f"'${value.toString}'"
+          platform.formatStringLiteral(value.toString)
 
         case And(lhs, rhs) =>
           val tl = wrapInParentheses[Or](lhs)
@@ -159,30 +160,48 @@ class GenericSqlTranslator(platform: Platform):
           val tr = wrapInParentheses[And | Or | Not](expr)
           f"NOT $tr"
 
+        case IsNull(expr) =>
+          f"${translateExpression(expr)} IS NULL"
+
+        case IsNotNull(expr) =>
+          f"${translateExpression(expr)} IS NOT NULL"
+
         case Exists(subquery) =>
           f"EXISTS ${translateExpression(subquery)}"
+
+        case StartsWith(needle, haystack) =>
+          val likeExpression = f"$needle%%"
+          f"${translateExpression(haystack)} LIKE ${platform.formatStringLiteral(likeExpression)}"
+
+        case EndsWith(needle, haystack) =>
+          val likeExpression = f"%%$needle"
+          f"${translateExpression(haystack)} LIKE ${platform.formatStringLiteral(likeExpression)}"
+
+        case Contains(needle, haystack) =>
+          val likeExpression = f"%%$needle%%"
+          f"${translateExpression(haystack)} LIKE ${platform.formatStringLiteral(likeExpression)}"
 
         case CountAll() =>
           "COUNT(*)"
 
         case Plus(lhs, rhs) =>
           val tl = translateExpression(lhs)
-          var tr = wrapInParentheses[Plus[?] | Minus[?]](rhs)
+          var tr = wrapInParentheses[Plus[?, ?] | Minus[?, ?]](rhs)
           f"${tl} + ${tr}"
 
         case Minus(lhs, rhs) =>
           val tl = translateExpression(lhs)
-          val tr = wrapInParentheses[Plus[?] | Minus[?]](rhs)
+          val tr = wrapInParentheses[Plus[?, ?] | Minus[?, ?]](rhs)
           f"$tl - $tr"
 
         case Multiply(lhs, rhs) =>
-          val tl = wrapInParentheses[Plus[?] | Minus[?]](lhs)
-          val tr = wrapInParentheses[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
+          val tl = wrapInParentheses[Plus[?, ?] | Minus[?, ?]](lhs)
+          val tr = wrapInParentheses[Plus[?, ?] | Minus[?, ?] | Multiply[?, ?] | Divide[?, ?]](rhs)
           f"$tl * $tr"
 
         case Divide(lhs, rhs) =>
           val tl = translateExpression(lhs)
-          val tr = wrapInParentheses[Plus[?] | Minus[?] | Multiply[?] | Divide[?]](rhs)
+          val tr = wrapInParentheses[Plus[?, ?] | Minus[?, ?] | Multiply[?, ?] | Divide[?, ?]](rhs)
           f"$tl / $tr"
 
         case Function(name, List(arg1)) =>

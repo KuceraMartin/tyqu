@@ -270,8 +270,8 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     assertEquals(query,
       """|SELECT `artists`.*
          |FROM `artists`
-         |WHERE SUM(
-         |  SELECT `tracks`.`duration`
+         |WHERE (
+         |  SELECT SUM(`tracks`.`duration`)
          |  FROM
          |    `releases`
          |      JOIN `released_by` ON `released_by`.`release_id` = `releases`.`id`,

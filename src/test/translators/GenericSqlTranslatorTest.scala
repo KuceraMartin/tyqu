@@ -12,7 +12,7 @@ class GenericSqlTranslatorTest extends UnitTest:
     val id = Column[Int]()
     val firstName = Column[String]()
     val lastName = Column[String]()
-    val age = Column[Int]()
+    val age = Column[Int | Null]()
 
   val translator = new GenericSqlTranslator(MySqlPlatform)
 
@@ -41,6 +41,34 @@ class GenericSqlTranslatorTest extends UnitTest:
       """|SELECT `my_table`.*
          |FROM `my_table`
          |WHERE `my_table`.`first_name` != 'John'""".stripMargin,
+    )
+  }
+
+
+  test("filter is null") {
+    val query = translator.translate(
+        from(MyTable).filter(_.age.isNull)
+      )
+
+    assertEquals(
+      query,
+      """|SELECT `my_table`.*
+         |FROM `my_table`
+         |WHERE `my_table`.`age` IS NULL""".stripMargin,
+    )
+  }
+
+
+  test("filter is not null") {
+    val query = translator.translate(
+        from(MyTable).filter(_.age.isNotNull)
+      )
+
+    assertEquals(
+      query,
+      """|SELECT `my_table`.*
+         |FROM `my_table`
+         |WHERE `my_table`.`age` IS NOT NULL""".stripMargin,
     )
   }
 
@@ -208,7 +236,7 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map to Expression") {
     val query = translator.translate(
-        from(MyTable).map(_.age.sum)
+        from(MyTable).map(_.age).sum
       )
 
     assertEquals(
@@ -267,12 +295,12 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("map complex") {
     val query = translator.translate(
-        from(MyTable).map{ t => (1 - (t.id + t.age) * (2 * t.id)).as("n") }
+        from(MyTable).map{ t => (1 - (t.id + t.age.getOrElse(0)) * (2 * t.id)).as("n") }
       )
 
     assertEquals(
       query,
-      """|SELECT 1 - (`my_table`.`id` + `my_table`.`age`) * (2 * `my_table`.`id`) AS `n`
+      """|SELECT 1 - (`my_table`.`id` + COALESCE(`my_table`.`age`, 0)) * (2 * `my_table`.`id`) AS `n`
          |FROM `my_table`""".stripMargin,
     )
   }
