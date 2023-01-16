@@ -5,14 +5,18 @@ import scala.language.unsafeNulls
 import utils.checkTupleOf
 
 
-type Scope = TupleScope | TableScope[?] | Expression[?]
+type Scope = MultiScope | Expression[?]
 
 given [S <: TupleScope]: (RefinedScope[S] { type Refined = S }) = new RefinedScope[S] { type Refined = S }
 given [T <: NamedExpression[?, ?]]: (RefinedScope[T] { type Refined = T } ) = new RefinedScope[T] { type Refined = T }
 given [T, E <: Expression[T]]: (RefinedScope[E] { type Refined = Expression[T] } ) = new RefinedScope[E] { type Refined = Expression[T] }
 
 
-class TupleScope(private[tyqu] val items: Tuple) extends Selectable:
+abstract class MultiScope:
+  private[tyqu] def toList: List[NamedExpression[?, ?]]
+
+
+class TupleScope(private[tyqu] val items: Tuple) extends MultiScope with Selectable:
 
   private[tyqu] val toList = items.productIterator.toList.asInstanceOf[List[NamedExpression[?, ?]]]
 
@@ -56,7 +60,7 @@ extension [T <: Tuple](lhs: T) {
 
 class TableScope[T <: Table](
   private[tyqu] val relation: TableRelation[T],
-) extends Selectable:
+) extends MultiScope with Selectable:
 
   private[tyqu] def pk = relation.pk
 

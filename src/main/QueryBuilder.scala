@@ -1,5 +1,6 @@
 package tyqu
 
+import execution.QueryExecutor
 import utils.checkTupleOrInstanceOf
 
 
@@ -59,6 +60,9 @@ case class QueryBuilder[T <: Scope](
 
   def count =
     copy(scope = CountAll())
+
+  transparent inline def execute()(using executor: QueryExecutor) =
+    executor.execute(this)
 
   private def prepareMap =
     if scope.isInstanceOf[TableScope[?]] then
