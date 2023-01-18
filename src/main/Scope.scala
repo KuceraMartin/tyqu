@@ -58,7 +58,7 @@ extension [T <: Tuple](lhs: T) {
 }
 
 
-class TableScope[T <: Table](
+class TableScope[T <: Table, Nullable <: Boolean](
   private[tyqu] val relation: TableRelation[T],
 ) extends MultiScope with Selectable:
 
@@ -97,4 +97,4 @@ class TableScope[T <: Table](
 end TableScope
 
 object TableScope:
-  given [T <: Table](using ref: RefinedScope[TableScope[T]]): Conversion[TableScope[T], ref.Refined] = _.asInstanceOf[ref.Refined]
+  given [T <: Table, Nullable <: Boolean](using ref: RefinedScope[TableScope[T, Nullable]]): Conversion[TableScope[T, Nullable], ref.Refined] = _.asInstanceOf[ref.Refined]

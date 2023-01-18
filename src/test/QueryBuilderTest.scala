@@ -62,3 +62,26 @@ class QueryBuilderTest extends UnitTest:
   //     "value getOrElse is not a member of",
   //   )
   // }
+
+  test("getOrElse method not available on m:1 non-nullable relation columns") {
+    val code = """
+      case object People extends Table:
+        val id = Column[Int]()
+        val name = Column[String]()
+        val roleId = Column[Int]()
+        lazy val role = ManyToOne(Roles, roleId)
+
+      case object Roles extends Table:
+        val id = Column[Int]()
+        val title = Column[String]()
+
+      from(People).map(_.role.title.getOrElse("none"))
+    """
+
+    val errors = compileErrors(code)
+
+    assertContains(errors,
+      "error:",
+      "value getOrElse is not a member of",
+    )
+  }

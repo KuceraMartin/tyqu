@@ -52,6 +52,10 @@ case class Column[ReadType](
     case c: Column[ReadType] => eq(c)
     case _ => false
 
-case class ManyToOne[T <: Table](target: T, through: Column[?])
-case class OneToMany[T <: Table](sourceTable: T, sourceProp: ManyToOne[?])
+case class ManyToOne[T <: Table, Nullable <: Boolean](target: T, through: Column[?])
+object ManyToOne:
+  def apply[T <: Table](target: T, through: Column[?], nullable: Boolean = false): ManyToOne[T, nullable.type] =
+    new ManyToOne[T, nullable.type](target, through)
+
+case class OneToMany[T <: Table](sourceTable: T, sourceProp: ManyToOne[?, ?])
 case class ManyToMany[T <: Table](target: T, joiningTable: Table, sourceColumn: Column[?], targetColumn: Column[?])

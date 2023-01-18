@@ -29,7 +29,7 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
 
       qb.scope match
         case t: TupleScope => t.toList.flatMap(relationsFromExpression(_, withSubqueries))
-        case t: TableScope[?] => List(t.relation)
+        case t: TableScope[?, ?] => List(t.relation)
         case e: Expression[?] => relationsFromExpression(e, withSubqueries),
 
       relationsFromExpression(qb.where, withSubqueries),
@@ -89,7 +89,7 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
           translateSelectExpression(expr)
         case scope: TupleScope =>
           scope.toList.map(translateSelectExpression).mkString(", ")
-        case scope: TableScope[?] =>
+        case scope: TableScope[?, ?] =>
           f"${platform.formatIdentifier(tableAliases(scope.relation))}.*"
 
 

@@ -8,33 +8,38 @@ trait RefinedScope[S <: Scope]:
   type Refined
 
 object RefinedScope:
- transparent inline given refinedScope[T <: Table]: RefinedScope[TableScope[T]] = ${ refinedScopeImpl[T] }
+ transparent inline given refinedScope[T <: Table, Nullable <: Boolean]: RefinedScope[TableScope[T, Nullable]] = ${ refinedScopeImpl[T, Nullable] }
 
-  def refinedScopeImpl[T <: Table : Type](using Quotes) =
+  def refinedScopeImpl[T <: Table : Type, Nullable <: Boolean : Type](using Quotes) =
     import quotes.reflect.*
+
+    val isNullable = TypeRepr.of[Nullable] =:= TypeRepr.of[true]
 
     val classSymbol = TypeRepr.of[T].classSymbol.get
     val fields = classSymbol.declaredFields
     val refinedType =
-      fields.foldRight(TypeRepr.of[TableScope[T]]){ (field, acc) =>
+      fields.foldRight(TypeRepr.of[TableScope[T, Nullable]]){ (field, acc) =>
         val nameTp = ConstantType(StringConstant(field.name)).asType
         val nameExpr = Expr(field.name)
         field.typeRef.translucentSuperType.asType match
           case '[Column[t]] =>
             nameTp match
               case '[StringSubtype[n]] =>
-                Refinement(acc, field.name, TypeRepr.of[ColumnValue[t, n]])
+                if isNullable then
+                  Refinement(acc, field.name, TypeRepr.of[ColumnValue[t | Null, n]])
+                else
+                  Refinement(acc, field.name, TypeRepr.of[ColumnValue[t, n]])
           case '[OneToMany[t]] => 
-            Refinement(acc, field.name, TypeRepr.of[QueryBuilder[TableScope[t]]])
+            Refinement(acc, field.name, TypeRepr.of[QueryBuilder[TableScope[t, false]]])
           case '[ManyToMany[t]] =>
-            Refinement(acc, field.name, TypeRepr.of[QueryBuilder[TableScope[t]]])
-          case '[ManyToOne[t]] =>
-            Refinement(acc, field.name, TypeRepr.of[TableScope[t]])
+            Refinement(acc, field.name, TypeRepr.of[QueryBuilder[TableScope[t, false]]])
+          case '[ManyToOne[t, n]] =>
+            Refinement(acc, field.name, TypeRepr.of[TableScope[t, n]])
           case _ =>
             acc
       }
     refinedType.asType match
-      case '[t] => '{ new RefinedScope[TableScope[T]] { type Refined = t } }
+      case '[t] => '{ new RefinedScope[TableScope[T, Nullable]] { type Refined = t } }
 
 object ScopeFactory:
 

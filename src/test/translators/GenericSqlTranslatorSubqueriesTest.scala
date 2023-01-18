@@ -21,8 +21,8 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     val position = Column[String]()
     val title = Column[String]()
     val duration = Column[Int]()
-    val releaseId = Column[Int]()
-    lazy val release = ManyToOne(Releases, releaseId)
+    val releaseId = Column[Int | Null]()
+    lazy val release = ManyToOne(Releases, releaseId, nullable = true)
   
   case object Artists extends Table:
     val id = Column[Int](primary = true)
@@ -278,4 +278,16 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
          |    `tracks`
          |  WHERE `released_by`.`artist_id` = `artists`.`id` AND `tracks`.`release_id` = `releases`.`id`
          |) > 10000""".stripMargin)
+  }
+
+
+  test("m:1 nullable makes all columns in the joined table nullable") {
+    val query = translator.translate(
+      from(Tracks).map{ t => (t.title, t.release.title.getOrElse("no release").as("release")) }
+    )
+
+    assertEquals(query,
+      """|SELECT `tracks`.`title`, COALESCE(`releases`.`title`, 'no release') AS `release`
+         |FROM `tracks`
+         |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`""".stripMargin)
   }

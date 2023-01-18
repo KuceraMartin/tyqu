@@ -45,7 +45,7 @@ case class QueryBuilder[T <: Scope](
         (scope match
             case e: Expression[?] => List(e)
             case s: TupleScope => s.toList
-            case s: TableScope[?] => s.toList
+            case s: TableScope[?, ?] => s.toList
         ).map(e => if desc then e.desc else e.asc)
       copy(orderBy = newOrderBy)
 
@@ -65,7 +65,7 @@ case class QueryBuilder[T <: Scope](
     executor.execute(this)
 
   private def prepareMap =
-    if scope.isInstanceOf[TableScope[?]] then
+    if scope.isInstanceOf[TableScope[?, ?]] then
       (scope, this)
     else
       // if we have only one value in scope -> name it so that it can be accessed
