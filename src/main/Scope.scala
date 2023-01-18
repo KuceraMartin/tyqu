@@ -88,8 +88,8 @@ class TableScope[T <: Table](
 
       case ManyToOne(target, through) =>
         val throughExpr = relation.colToExpr(through).asInstanceOf[Expression[Any]]
-        val rel = JoinRelation(target, JoinType.Inner, { join =>
-          throughExpr === join.pk.asInstanceOf[Expression[Any]]
+        val rel = JoinRelation(target, JoinType.Left, { join =>
+          join.pk.asInstanceOf[Expression[Any]] === throughExpr
         })
         TableScope(rel)
       case v => throw Exception(f"$name -> $v")

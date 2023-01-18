@@ -45,7 +45,7 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     assertEquals(query,
       """|SELECT `tracks`.`title`, `releases`.`genre`
          |FROM `tracks`
-         |JOIN `releases` ON `tracks`.`release_id` = `releases`.`id`""".stripMargin)
+         |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`""".stripMargin)
   }
 
 
@@ -99,7 +99,7 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     assertEquals(query,
       """|SELECT `tracks`.*
          |FROM `tracks`
-         |JOIN `releases` ON `tracks`.`release_id` = `releases`.`id`
+         |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`
          |WHERE `releases`.`genre` = 'Rock'""".stripMargin)
   }
 
@@ -150,7 +150,7 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     assertEquals(query,
       """|SELECT `tracks`.*
          |FROM `tracks`
-         |JOIN `releases` ON `tracks`.`release_id` = `releases`.`id`
+         |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`
          |ORDER BY `releases`.`country`""".stripMargin)
   }
 
@@ -201,7 +201,7 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     assertEquals(query,
       """|SELECT `tracks_1`.*
          |FROM `tracks` `tracks_1`
-         |JOIN `releases` ON `tracks_1`.`release_id` = `releases`.`id`
+         |LEFT JOIN `releases` ON `releases`.`id` = `tracks_1`.`release_id`
          |ORDER BY (
          |  SELECT COUNT(*)
          |  FROM `tracks` `tracks_2`
