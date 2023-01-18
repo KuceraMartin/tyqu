@@ -6,7 +6,7 @@ import utils.checkTupleOrInstanceOf
 
 case class QueryBuilder[T <: Scope](
   private[tyqu] scope: T,
-  private[tyqu] from: Relation,
+  private[tyqu] from: FromRelation[?] | SubqueryRelation,
   private[tyqu] where: Expression[Boolean] = NoFilterExpression,
   private[tyqu] orderBy: List[OrderBy] = List.empty,
   private[tyqu] limit: Option[Int] = None,
