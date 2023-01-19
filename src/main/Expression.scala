@@ -61,7 +61,7 @@ case class ColumnValue[T, N <: String & Singleton](name: N, relation: Relation) 
 // E because the type in QueryBuilder is invariant
 case class SubqueryExpression[T, E <: Expression[T]](qb: QueryBuilder[E]) extends Expression[T]
 
-case class LiteralExpression[T](value: T) extends Expression[T]
+case class LiteralExpression[T](value: T, static: Boolean = false) extends Expression[T]
 
 case class Function[T](name: String, arguments: List[Expression[?]]) extends Expression[T]
 

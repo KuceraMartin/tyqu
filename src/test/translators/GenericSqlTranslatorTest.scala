@@ -22,12 +22,13 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).filter(_.id === 1)
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.*
-         |FROM `my_table`
-         |WHERE `my_table`.`id` = 1""".stripMargin
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table`.*
+           |FROM `my_table`
+           |WHERE `my_table`.`id` = ?""".stripMargin,
+        List(1),
+      ))
   }
 
 
@@ -36,12 +37,13 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).filter(_.firstName =!= "John")
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.*
-         |FROM `my_table`
-         |WHERE `my_table`.`first_name` != 'John'""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table`.*
+           |FROM `my_table`
+           |WHERE `my_table`.`first_name` != ?""".stripMargin,
+        List("John")
+      ))
   }
 
 
@@ -50,12 +52,13 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).filter(_.age.isNull)
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.*
-         |FROM `my_table`
-         |WHERE `my_table`.`age` IS NULL""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table`.*
+                  |FROM `my_table`
+                  |WHERE `my_table`.`age` IS NULL""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -64,12 +67,13 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).filter(_.age.isNotNull)
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.*
-         |FROM `my_table`
-         |WHERE `my_table`.`age` IS NOT NULL""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table`.*
+           |FROM `my_table`
+           |WHERE `my_table`.`age` IS NOT NULL""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -80,12 +84,13 @@ class GenericSqlTranslatorTest extends UnitTest:
         }
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.*
-         |FROM `my_table`
-         |WHERE `my_table`.`age` > 18 AND NOT (`my_table`.`first_name` = 'John' OR `my_table`.`last_name` = 'Doe')""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table`.*
+           |FROM `my_table`
+           |WHERE `my_table`.`age` > ? AND NOT (`my_table`.`first_name` = ? OR `my_table`.`last_name` = ?)""".stripMargin,
+        List(18, "John", "Doe")
+      ))
   }
 
 
@@ -94,11 +99,12 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).map{ t => (t.id, t.firstName, t.lastName) }
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`
-         |FROM `my_table`""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`
+           |FROM `my_table`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -107,11 +113,12 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).map{ t => (t.id, t.firstName) :* t.lastName }
       )
     
-    assertEquals(
-      query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`
-         |FROM `my_table`""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`
+           |FROM `my_table`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -120,11 +127,12 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).map{ t => t.id *: (t.firstName, t.lastName) }
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`
-         |FROM `my_table`""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`
+           |FROM `my_table`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -133,11 +141,12 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).map{ t => t.id *: t.firstName *: t.lastName *: EmptyTuple }
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`
-         |FROM `my_table`""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table`.`id`, `my_table`.`first_name`, `my_table`.`last_name`
+           |FROM `my_table`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -162,11 +171,14 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `my_table_2`.`id`, `my_table_2`.`age`, 2 * `my_table_2`.`age` AS `doubleAge`
-         |FROM (
-         |  SELECT `my_table_1`.`id`, `my_table_1`.`age`
-         |  FROM `my_table` `my_table_1`
-         |) `my_table_2`""".stripMargin)
+      SqlQuery(
+        """|SELECT `my_table_2`.`id`, `my_table_2`.`age`, ? * `my_table_2`.`age` AS `doubleAge`
+           |FROM (
+           |  SELECT `my_table_1`.`id`, `my_table_1`.`age`
+           |  FROM `my_table` `my_table_1`
+           |) `my_table_2`""".stripMargin,
+        List(2)
+      ))
   }
 
 
@@ -178,11 +190,14 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT 2 * `my_table_2`.`age` AS `doubleAge`, `my_table_2`.`id`, `my_table_2`.`age`
-         |FROM (
-         |  SELECT `my_table_1`.`id`, `my_table_1`.`age`
-         |  FROM `my_table` `my_table_1`
-         |) `my_table_2`""".stripMargin)
+      SqlQuery(
+        """|SELECT ? * `my_table_2`.`age` AS `doubleAge`, `my_table_2`.`id`, `my_table_2`.`age`
+          |FROM (
+          |  SELECT `my_table_1`.`id`, `my_table_1`.`age`
+          |  FROM `my_table` `my_table_1`
+          |) `my_table_2`""".stripMargin,
+        List(2)
+      ))
   }
 
 
@@ -194,11 +209,14 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `my_table_2`.`id`, `my_table_2`.`first_name`, `my_table_2`.`id` AS `id2`, `my_table_2`.`first_name` AS `fn2`
-         |FROM (
-         |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name`
-         |  FROM `my_table` `my_table_1`
-         |) `my_table_2`""".stripMargin)
+      SqlQuery(
+        """|SELECT `my_table_2`.`id`, `my_table_2`.`first_name`, `my_table_2`.`id` AS `id2`, `my_table_2`.`first_name` AS `fn2`
+          |FROM (
+          |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name`
+          |  FROM `my_table` `my_table_1`
+          |) `my_table_2`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -210,11 +228,14 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `my_table_2`.`id` AS `id2`, `my_table_2`.`first_name` AS `fn2`, `my_table_2`.`id`, `my_table_2`.`first_name`
-         |FROM (
-         |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name`
-         |  FROM `my_table` `my_table_1`
-         |) `my_table_2`""".stripMargin)
+      SqlQuery(
+        """|SELECT `my_table_2`.`id` AS `id2`, `my_table_2`.`first_name` AS `fn2`, `my_table_2`.`id`, `my_table_2`.`first_name`
+          |FROM (
+          |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name`
+          |  FROM `my_table` `my_table_1`
+          |) `my_table_2`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -226,11 +247,14 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `my_table_2`.`first_name` AS `id`, `my_table_2`.`first_name`
-         |FROM (
-         |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name`
-         |  FROM `my_table` `my_table_1`
-         |) `my_table_2`""".stripMargin)
+      SqlQuery(
+        """|SELECT `my_table_2`.`first_name` AS `id`, `my_table_2`.`first_name`
+          |FROM (
+          |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name`
+          |  FROM `my_table` `my_table_1`
+          |) `my_table_2`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -239,11 +263,12 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).map(_.age).sum
       )
 
-    assertEquals(
-      query,
-      """|SELECT SUM(`my_table`.`age`)
-         |FROM `my_table`""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT SUM(`my_table`.`age`)
+           |FROM `my_table`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -252,11 +277,12 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).map{ t => (t.id, t.firstName.as("fn"), t.lastName.as("ln")) }
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table`.`id`, `my_table`.`first_name` AS `fn`, `my_table`.`last_name` AS `ln`
-         |FROM `my_table`""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table`.`id`, `my_table`.`first_name` AS `fn`, `my_table`.`last_name` AS `ln`
+           |FROM `my_table`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -266,14 +292,15 @@ class GenericSqlTranslatorTest extends UnitTest:
                    .map(_.ln)
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table_2`.`ln`
-         |FROM (
-         |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name` AS `fn`, `my_table_1`.`last_name` AS `ln`
-         |  FROM `my_table` `my_table_1`
-         |) `my_table_2`""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table_2`.`ln`
+           |FROM (
+           |  SELECT `my_table_1`.`id`, `my_table_1`.`first_name` AS `fn`, `my_table_1`.`last_name` AS `ln`
+           |  FROM `my_table` `my_table_1`
+           |) `my_table_2`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -282,14 +309,15 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).map(_.id * 2).map(_ * 3)
       )
 
-    assertEquals(
-      query,
-      """|SELECT `my_table_2`.`v` * 3
-         |FROM (
-         |  SELECT `my_table_1`.`id` * 2 AS `v`
-         |  FROM `my_table` `my_table_1`
-         |) `my_table_2`""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `my_table_2`.`v` * ?
+          |FROM (
+          |  SELECT `my_table_1`.`id` * ? AS `v`
+          |  FROM `my_table` `my_table_1`
+          |) `my_table_2`""".stripMargin,
+        List(3, 2)
+      ))
   }
 
 
@@ -298,11 +326,12 @@ class GenericSqlTranslatorTest extends UnitTest:
         from(MyTable).map{ t => (1 - (t.id + t.age.getOrElse(0)) * (2 * t.id)).as("n") }
       )
 
-    assertEquals(
-      query,
-      """|SELECT 1 - (`my_table`.`id` + COALESCE(`my_table`.`age`, 0)) * (2 * `my_table`.`id`) AS `n`
-         |FROM `my_table`""".stripMargin,
-    )
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT ? - (`my_table`.`id` + COALESCE(`my_table`.`age`, ?)) * (? * `my_table`.`id`) AS `n`
+           |FROM `my_table`""".stripMargin,
+        List(1, 0, 2)
+      ))
   }
 
 
@@ -312,9 +341,12 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
       assertEquals(query,
-      """|SELECT `my_table`.*
-         |FROM `my_table`
-         |ORDER BY `my_table`.`last_name` DESC, `my_table`.`age` ASC, `my_table`.`id` ASC""".stripMargin)
+      SqlQuery(
+        """|SELECT `my_table`.*
+           |FROM `my_table`
+           |ORDER BY `my_table`.`last_name` DESC, `my_table`.`age` ASC, `my_table`.`id` ASC""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -324,9 +356,12 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
       assertEquals(query,
-      """|SELECT `my_table`.*
-         |FROM `my_table`
-         |ORDER BY `my_table`.`id`""".stripMargin)
+        SqlQuery(
+          """|SELECT `my_table`.*
+             |FROM `my_table`
+             |ORDER BY `my_table`.`id`""".stripMargin,
+          Seq.empty
+        ))
   }
 
 
@@ -338,12 +373,15 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `my_table_2`.`first_name`
-         |FROM (
-         |  SELECT `my_table_1`.`first_name`, `my_table_1`.`age` AS `a`
-         |  FROM `my_table` `my_table_1`
-         |  ORDER BY `a`
-         |) `my_table_2`""".stripMargin)
+      SqlQuery(
+        """|SELECT `my_table_2`.`first_name`
+           |FROM (
+           |  SELECT `my_table_1`.`first_name`, `my_table_1`.`age` AS `a`
+           |  FROM `my_table` `my_table_1`
+           |  ORDER BY `a`
+           |) `my_table_2`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -353,9 +391,12 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
       assertEquals(query,
-      """|SELECT `my_table`.*
-         |FROM `my_table`
-         |LIMIT 10""".stripMargin)
+        SqlQuery(
+          """|SELECT `my_table`.*
+             |FROM `my_table`
+             |LIMIT 10""".stripMargin,
+          Seq.empty
+        ))
   }
 
 
@@ -367,10 +408,13 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
       assertEquals(query,
-      """|SELECT `my_table`.*
-         |FROM `my_table`
-         |LIMIT 15
-         |OFFSET 20""".stripMargin)
+        SqlQuery(
+          """|SELECT `my_table`.*
+             |FROM `my_table`
+             |LIMIT 15
+             |OFFSET 20""".stripMargin,
+          Seq.empty
+        ))
   }
 
 	
@@ -384,10 +428,13 @@ class GenericSqlTranslatorTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `my_table`.`id`, CONCAT(`my_table`.`first_name`, ' ', `my_table`.`last_name`) AS `name`
-         |FROM `my_table`
-         |WHERE `my_table`.`age` >= 18
-         |ORDER BY `name` ASC, `my_table`.`id` DESC
-         |LIMIT 5
-         |OFFSET 10""".stripMargin)
+      SqlQuery(
+        """|SELECT `my_table`.`id`, CONCAT(`my_table`.`first_name`, ?, `my_table`.`last_name`) AS `name`
+           |FROM `my_table`
+           |WHERE `my_table`.`age` >= ?
+           |ORDER BY `name` ASC, `my_table`.`id` DESC
+           |LIMIT 5
+           |OFFSET 10""".stripMargin,
+        List(" ", 18)
+      ))
   }

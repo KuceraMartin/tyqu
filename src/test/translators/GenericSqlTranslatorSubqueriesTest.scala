@@ -43,9 +43,12 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     )
 
     assertEquals(query,
-      """|SELECT `tracks`.`title`, `releases`.`genre`
-         |FROM `tracks`
-         |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`""".stripMargin)
+      SqlQuery(
+        """|SELECT `tracks`.`title`, `releases`.`genre`
+           |FROM `tracks`
+           |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -60,12 +63,15 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `releases`.`title`, (
-         |  SELECT COUNT(*)
-         |  FROM `tracks`
-         |  WHERE `tracks`.`release_id` = `releases`.`id`
-         |) AS `tracks`
-         |FROM `releases`""".stripMargin)
+      SqlQuery(
+        """|SELECT `releases`.`title`, (
+           |  SELECT COUNT(*)
+           |  FROM `tracks`
+           |  WHERE `tracks`.`release_id` = `releases`.`id`
+           |) AS `tracks`
+           |FROM `releases`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -80,13 +86,16 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `releases`.`title`, (
-         |  SELECT COUNT(*)
-         |  FROM `artists`
-         |  JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
-         |  WHERE `released_by`.`release_id` = `releases`.`id`
-         |) AS `artists`
-         |FROM `releases`""".stripMargin)
+      SqlQuery(
+        """|SELECT `releases`.`title`, (
+           |  SELECT COUNT(*)
+           |  FROM `artists`
+           |  JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
+           |  WHERE `released_by`.`release_id` = `releases`.`id`
+           |) AS `artists`
+           |FROM `releases`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -97,10 +106,13 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     )
 
     assertEquals(query,
-      """|SELECT `tracks`.*
-         |FROM `tracks`
-         |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`
-         |WHERE `releases`.`genre` = 'Rock'""".stripMargin)
+      SqlQuery(
+        """|SELECT `tracks`.*
+           |FROM `tracks`
+           |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`
+           |WHERE `releases`.`genre` = ?""".stripMargin,
+        List("Rock")
+      ))
   }
 
 
@@ -112,13 +124,16 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `releases`.`title`
-         |FROM `releases`
-         |WHERE (
-         |  SELECT COUNT(*)
-         |  FROM `tracks`
-         |  WHERE `tracks`.`release_id` = `releases`.`id`
-         |) > 5""".stripMargin)
+        SqlQuery(
+        """|SELECT `releases`.`title`
+           |FROM `releases`
+           |WHERE (
+           |  SELECT COUNT(*)
+           |  FROM `tracks`
+           |  WHERE `tracks`.`release_id` = `releases`.`id`
+           |) > ?""".stripMargin,
+        List(5)
+        ))
   }
 
 
@@ -130,14 +145,17 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `releases`.`title`
-         |FROM `releases`
-         |WHERE (
-         |  SELECT COUNT(*)
-         |  FROM `artists`
-         |  JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
-         |  WHERE `released_by`.`release_id` = `releases`.`id`
-         |) > 5""".stripMargin)
+      SqlQuery(
+        """|SELECT `releases`.`title`
+           |FROM `releases`
+           |WHERE (
+           |  SELECT COUNT(*)
+           |  FROM `artists`
+           |  JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
+           |  WHERE `released_by`.`release_id` = `releases`.`id`
+           |) > ?""".stripMargin,
+        List(5)
+      ))
   }
 
 
@@ -148,10 +166,13 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     )
 
     assertEquals(query,
-      """|SELECT `tracks`.*
-         |FROM `tracks`
-         |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`
-         |ORDER BY `releases`.`country`""".stripMargin)
+      SqlQuery(
+        """|SELECT `tracks`.*
+           |FROM `tracks`
+           |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`
+           |ORDER BY `releases`.`country`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -163,13 +184,16 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `releases`.`title`
-         |FROM `releases`
-         |ORDER BY (
-         |  SELECT COUNT(*)
-         |  FROM `tracks`
-         |  WHERE `tracks`.`release_id` = `releases`.`id`
-         |) DESC""".stripMargin)
+      SqlQuery(
+        """|SELECT `releases`.`title`
+           |FROM `releases`
+           |ORDER BY (
+           |  SELECT COUNT(*)
+           |  FROM `tracks`
+           |  WHERE `tracks`.`release_id` = `releases`.`id`
+           |) DESC""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -181,14 +205,17 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
       )
 
     assertEquals(query,
-      """|SELECT `releases`.`title`
-         |FROM `releases`
-         |ORDER BY (
-         |  SELECT COUNT(*)
-         |  FROM `artists`
-         |  JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
-         |  WHERE `released_by`.`release_id` = `releases`.`id`
-         |) DESC""".stripMargin)
+      SqlQuery(
+        """|SELECT `releases`.`title`
+           |FROM `releases`
+           |ORDER BY (
+           |  SELECT COUNT(*)
+           |  FROM `artists`
+           |  JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
+           |  WHERE `released_by`.`release_id` = `releases`.`id`
+           |) DESC""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -199,14 +226,17 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     )
 
     assertEquals(query,
-      """|SELECT `tracks_1`.*
-         |FROM `tracks` `tracks_1`
-         |LEFT JOIN `releases` ON `releases`.`id` = `tracks_1`.`release_id`
-         |ORDER BY (
-         |  SELECT COUNT(*)
-         |  FROM `tracks` `tracks_2`
-         |  WHERE `tracks_2`.`release_id` = `releases`.`id`
-         |) DESC""".stripMargin)
+      SqlQuery(
+        """|SELECT `tracks_1`.*
+           |FROM `tracks` `tracks_1`
+           |LEFT JOIN `releases` ON `releases`.`id` = `tracks_1`.`release_id`
+           |ORDER BY (
+           |  SELECT COUNT(*)
+           |  FROM `tracks` `tracks_2`
+           |  WHERE `tracks_2`.`release_id` = `releases`.`id`
+           |) DESC""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -220,12 +250,15 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     )
 
     assertEquals(query,
-      """|SELECT `releases_1`.`title`, (
-         |  SELECT COUNT(*)
-         |  FROM `releases` `releases_2`
-         |  WHERE `releases_2`.`id` < `releases_1`.`id`
-         |) AS `preceding`
-         |FROM `releases` `releases_1`""".stripMargin)
+      SqlQuery(
+        """|SELECT `releases_1`.`title`, (
+           |  SELECT COUNT(*)
+           |  FROM `releases` `releases_2`
+           |  WHERE `releases_2`.`id` < `releases_1`.`id`
+           |) AS `preceding`
+           |FROM `releases` `releases_1`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -235,14 +268,17 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     )
 
     assertEquals(query,
-      """|SELECT `releases`.*
-         |FROM `releases`
-         |WHERE EXISTS (
-         |  SELECT 1
-         |  FROM `artists`
-         |  JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
-         |  WHERE `released_by`.`release_id` = `releases`.`id` AND `artists`.`name` = 'Radiohead'
-         |)""".stripMargin)
+      SqlQuery(
+        """|SELECT `releases`.*
+           |FROM `releases`
+           |WHERE EXISTS (
+           |  SELECT 1
+           |  FROM `artists`
+           |  JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
+           |  WHERE `released_by`.`release_id` = `releases`.`id` AND `artists`.`name` = ?
+           |)""".stripMargin,
+        List("Radiohead")
+      ))
   }
 
 
@@ -252,12 +288,15 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     )
 
     assertEquals(query,
-      """|SELECT `artists`.`name`, `releases`.`title`
-         |FROM
-         |  `releases`,
-         |  `artists`
-         |    JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
-         |WHERE `released_by`.`release_id` = `releases`.`id`""".stripMargin)
+      SqlQuery(
+        """|SELECT `artists`.`name`, `releases`.`title`
+           |FROM
+           |  `releases`,
+           |  `artists`
+           |    JOIN `released_by` ON `released_by`.`artist_id` = `artists`.`id`
+           |WHERE `released_by`.`release_id` = `releases`.`id`""".stripMargin,
+        Seq.empty
+      ))
   }
 
 
@@ -268,16 +307,19 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     )
 
     assertEquals(query,
-      """|SELECT `artists`.*
-         |FROM `artists`
-         |WHERE (
-         |  SELECT SUM(`tracks`.`duration`)
-         |  FROM
-         |    `releases`
-         |      JOIN `released_by` ON `released_by`.`release_id` = `releases`.`id`,
-         |    `tracks`
-         |  WHERE `released_by`.`artist_id` = `artists`.`id` AND `tracks`.`release_id` = `releases`.`id`
-         |) > 10000""".stripMargin)
+      SqlQuery(
+        """|SELECT `artists`.*
+           |FROM `artists`
+           |WHERE (
+           |  SELECT SUM(`tracks`.`duration`)
+           |  FROM
+           |    `releases`
+           |      JOIN `released_by` ON `released_by`.`release_id` = `releases`.`id`,
+           |    `tracks`
+           |  WHERE `released_by`.`artist_id` = `artists`.`id` AND `tracks`.`release_id` = `releases`.`id`
+           |) > ?""".stripMargin,
+        List(10000)
+      ))
   }
 
 
@@ -287,7 +329,10 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     )
 
     assertEquals(query,
-      """|SELECT `tracks`.`title`, COALESCE(`releases`.`title`, 'no release') AS `release`
-         |FROM `tracks`
-         |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`""".stripMargin)
+      SqlQuery(
+        """|SELECT `tracks`.`title`, COALESCE(`releases`.`title`, ?) AS `release`
+           |FROM `tracks`
+           |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`""".stripMargin,
+        List("no release")
+      ))
   }

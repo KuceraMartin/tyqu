@@ -13,9 +13,9 @@ case class QueryBuilder[T <: Scope](
   private[tyqu] offset: Int = 0,
 ):
 
-  inline transparent def map[S <: Scope, T1 <: Tuple, T2 <: (S | T1)](using ref: RefinedScope[T])(inline fn: ref.Refined => T2): QueryBuilder[?] =
+  inline transparent def map[S <: Scope, T1 <: Tuple, T2 <: (S | T1)](inline fn: T => T2): QueryBuilder[?] =
     val (originalScope, newQb) = prepareMap
-    QueryBuilderFactory.fromMap[ref.Refined & Scope, S, T1, T2](originalScope.asInstanceOf[ref.Refined & Scope], newQb, fn)
+    QueryBuilderFactory.fromMap[T, S, T1, T2](originalScope, newQb, fn)
 
   def flatMap[S2 <: Scope](using ref: RefinedScope[T])(fn: ref.Refined => QueryBuilder[S2]): QueryBuilder[S2] =
     val (originalScope, newQb) = prepareMap
@@ -32,7 +32,7 @@ case class QueryBuilder[T <: Scope](
     copy(where = where && expr)
   
   def exists(using ref: RefinedScope[T])(predicate: ref.Refined => Expression[Boolean]): Expression[Boolean] =
-    Exists(SubqueryExpression(filter(predicate).map(_ => 1).asInstanceOf))
+    Exists(SubqueryExpression(filter(predicate).map(_ => LiteralExpression(1, static = true)).asInstanceOf))
 
   def sortBy[Res <: Tuple | OrderBy](using ref: RefinedScope[T])(fn: ref.Refined => Res)(using checkTupleOrInstanceOf[Res, OrderBy] =:= true): QueryBuilder[T] =
     val newOrderBy = fn(scope.asInstanceOf[ref.Refined]) match
