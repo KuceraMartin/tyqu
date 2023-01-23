@@ -7,6 +7,7 @@ import java.sql.DriverManager
 import tyqu.{*, given}
 import tyqu.execution.QueryExecutor
 import tyqu.translators.GenericSqlTranslator
+import tyqu.translators.PostgreSqlTranslator
 import tyqu.platforms.*
 import tyqu.execution.PostgreSqlQueryExecutor
 import tyqu.execution.RefinedResult
@@ -29,7 +30,7 @@ case object Tracks extends Table:
   val title = Column[String]()
   val duration = Column[Int]()
 
-  lazy val release = ManyToOne(Releases, releaseId)
+  lazy val release = ManyToOne(Releases, releaseId, nullable = true)
 
 
 case object Artists extends Table:
@@ -53,15 +54,16 @@ object Demo:
     given PostgreSqlQueryExecutor(connection)
 
     val q =
+      from(Releases)
+        .groupMap{ r => (r.id, r.genre) }{ r => (r.genre, r.tracks.count.as("cnt")) }
+
       // Find out the average track duration.
 
       // List the titles of all releases by Radiohead that contain less than 5 tracks, sorted in alphabetical order.
 
       // What are the names and IDs of the top 10 artists with the most releases?
 
-      // How many artists have at least 10000 seconds of released music (i.e., total track duration >= 10000) and at least one release with the genre 'Classical'?
-      from(Releases).limit(10).map(_.id * 2)
+      // How many artists have at least 10000 seconds of released music (i.e., total track duration >= 10000)?
 
-    // println(translator.translate(q))
-
-    q.execute().foreach(println)
+    println(PostgreSqlTranslator.translate(q))
+    // q.execute().foreach(println)

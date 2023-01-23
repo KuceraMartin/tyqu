@@ -417,6 +417,22 @@ class GenericSqlTranslatorTest extends UnitTest:
         ))
   }
 
+
+  test("groupMap") {
+    val query = translator.translate(
+      from(MyTable)
+        .groupMap(_.firstName){r => (r.firstName, r.age) }
+    )
+
+    assertEquals(query,
+        SqlQuery(
+          """|SELECT `my_table`.`first_name`
+             |FROM `my_table`
+             |GROUP BY `my_table`.`first_name`""".stripMargin,
+          Seq.empty
+        ))
+  }
+
 	
   test("complex") {
     val query = translator.translate(

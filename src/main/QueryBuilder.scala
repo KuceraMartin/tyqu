@@ -8,6 +8,7 @@ case class QueryBuilder[T <: Scope](
   private[tyqu] scope: T,
   private[tyqu] from: FromRelation[?] | SubqueryRelation,
   private[tyqu] where: Expression[Boolean] = NoFilterExpression,
+  private[tyqu] groupBy: List [Expression[?]] = List.empty,
   private[tyqu] orderBy: List[OrderBy] = List.empty,
   private[tyqu] limit: Option[Int] = None,
   private[tyqu] offset: Int = 0,
@@ -30,6 +31,15 @@ case class QueryBuilder[T <: Scope](
   def filter(using ref: RefinedScope[T])(predicate: ref.Refined => Expression[Boolean]): QueryBuilder[T] =
     val expr = predicate(scope.asInstanceOf[ref.Refined])
     copy(where = where && expr)
+
+  inline transparent def groupMap[G <: (Tuple | Scope), S <: Scope, T1 <: Tuple, M <: (S | T1)](using ref: RefinedScope[T])(g: ref.Refined => G)(m: T => M): QueryBuilder[?] =
+    val groupBy: List[Expression[?]] = inline g(scope.asInstanceOf) match
+      case t: Tuple => t.toList.asInstanceOf[List[Expression[?]]]
+      case s: MultiScope => s.toList
+      case e: Expression[?] => List(e)
+    val qb2 = copy(groupBy = groupBy)
+    val (originalScope, qb3) = qb2.prepareMap
+    QueryBuilderFactory.fromMap[T, S, T1, M](originalScope, qb3, m)
   
   def exists(using ref: RefinedScope[T])(predicate: ref.Refined => Expression[Boolean]): Expression[Boolean] =
     Exists(SubqueryExpression(filter(predicate).map(_ => LiteralExpression(1, static = true)).asInstanceOf))
@@ -77,7 +87,7 @@ case class QueryBuilder[T <: Scope](
           case ts: TupleScope => ts.replaceRelation(newRelation)
           case e: NamedExpression[t, n] => ColumnValue[t, n](e.alias, newRelation)
         ).asInstanceOf[T]
-      val newQb = new QueryBuilder(newScope, newRelation)
+      val newQb = QueryBuilder(scope = newScope, from = newRelation)
       (newScope, newQb)
 
 end QueryBuilder

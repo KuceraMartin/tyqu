@@ -247,6 +247,9 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
           case NoFilterExpression => None
           case expr => Some("WHERE " + translateExpression(expr)),
 
+        if qb.groupBy.isEmpty then None
+        else Some("GROUP BY " + qb.groupBy.map(translateExpression(_)).mkString(", ")),
+
         if (qb.orderBy.isEmpty) None
         else Some("ORDER BY " + qb.orderBy.map(translateOrderByExpression).mkString(", ")),
 
