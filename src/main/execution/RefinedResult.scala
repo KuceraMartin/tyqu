@@ -17,6 +17,11 @@ object RefinedResult:
   transparent inline given refinedResult[S <: Scope]: RefinedResult[S] = ${ refinedResultImpl[S] }
 
   private def refinedResultImpl[S <: Scope : Type](using Quotes): Expr[RefinedResult[S]] =
+    refinedResultType[S] match
+      case '[t] => '{ new RefinedResult[S] { type Refined = t } }
+
+
+  def refinedResultType[S <: Scope : Type](using Quotes): Type[?] =
     import quotes.reflect.*
 
     val tableScope = Symbol.classSymbol("tyqu.TableScope")
@@ -25,7 +30,7 @@ object RefinedResult:
 
     val scopeType = TypeRepr.of[S]
     
-    val refinedType =
+    val res = 
       if scopeType.derivesFrom(tableScope) then
         val classSymbol = scopeType.baseType(tableScope).typeArgs(0).classSymbol.get
         val fields = classSymbol.declaredFields
@@ -49,12 +54,14 @@ object RefinedResult:
             case _ => acc
         rec(scopeType, TypeRepr.of[Result])
 
-      else
+      else if scopeType.derivesFrom(expression) then
         scopeType.baseType(expression).typeArgs(0)
+
+      else
+        throw Exception(s"Unexpected scope type ${scopeType.show}")
       
       end if
 
-    refinedType.asType match
-      case '[t] => '{ new RefinedResult[S] { type Refined = t } }
+    res.asType
 
 end RefinedResult

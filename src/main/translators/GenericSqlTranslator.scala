@@ -156,6 +156,10 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
             parameters += value
             "?"
 
+          case p: RuntimeParameterExpression[t] =>
+            parameters += RuntimeParameter[t](p.name)
+            "?"
+
           case And(lhs, rhs) =>
             val tl = wrapInParentheses[Or[?, ?]](lhs)
             val tr = wrapInParentheses[And[?, ?] | Or[?, ?]](rhs)

@@ -1,9 +1,12 @@
 package tyqu
 
+import execution.PreparedQuery
 import execution.QueryExecutor
 import utils.IsTupleOf
 import QueryBuilder.IsValidMapResult
 import scala.annotation.targetName
+import execution.RefinedResult
+import translators.Translator
 
 
 case class QueryBuilder[T <: Scope](
@@ -91,6 +94,11 @@ case class QueryBuilder[T <: Scope](
 
   transparent inline def execute()(using executor: QueryExecutor) =
     executor.execute(this)
+
+  transparent inline def preparedQuery(using translator: Translator)(using ref: RefinedResult[T]) =
+    val q = translator.translate(this)
+    val conversion = QueryExecutor.scopeToConversion(scope)
+    PreparedQuery(conversion, q).asInstanceOf[PreparedQuery[ref.Refined]]
 
   private def prepareMap =
     if scope.isInstanceOf[TableScope[?, ?]] then

@@ -6,10 +6,3 @@ class Result(values: Map[String, Any]) extends Selectable:
 	def selectDynamic(key: String) = values(key)
 
 end Result
-
-
-object Result
-
-	
-
-end Result

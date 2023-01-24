@@ -80,6 +80,8 @@ case class SubqueryExpression[T, E <: Expression[T, true]](qb: QueryBuilder[E]) 
 
 case class LiteralValue[T](value: T, static: Boolean = false) extends Expression[T, true]
 
+case class RuntimeParameterExpression[T](name: String) extends Expression[T, true]
+
 abstract class ProductExpression[T, Arguments <: Tuple | Expression[?, ?]] extends Expression[T, ArgsCanSelect[Arguments]]
 
 case class Function[T, Arguments <: Tuple](name: String, arguments: Arguments)(using IsTupleOf[Arguments, Expression[?, ?]] =:= true) extends ProductExpression[T, Arguments]
