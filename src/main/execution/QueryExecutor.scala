@@ -27,7 +27,7 @@ class QueryExecutor(connection: Connection, translator: Translator):
 					.toMap
 					Result(m).asInstanceOf[ref.Refined]
 				ResultIterator(rs, conversion)
-			case e: Expression[?] =>
+			case e: Expression[?, ?] =>
 				ResultIterator(rs, _.getString(1).asInstanceOf[ref.Refined])
 
 end QueryExecutor

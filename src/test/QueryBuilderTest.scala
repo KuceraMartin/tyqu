@@ -5,7 +5,7 @@ class QueryBuilderTest extends UnitTest:
 
   test("filter type mismatch") {
     val code = """
-        case object MyTable extends Table:
+        object MyTable extends Table:
           val id = Column[Int]()
           val firstName = Column[String]()
           val lastName = Column[String]()
@@ -19,7 +19,7 @@ class QueryBuilderTest extends UnitTest:
     assertContains(errors,
       "error:",
       "Found:    (\"***str$$$\" : String)",
-      "Required: tyqu.Expression[T2]",
+      "Required: tyqu.Expression[T2, ?]",
       "where:    T2 is a type variable with constraint <: Int | Null",
     )
   }
@@ -27,7 +27,7 @@ class QueryBuilderTest extends UnitTest:
 
   test("isNull method not available on non-nullable expressions") {
     val code = """
-        case object MyTable extends Table:
+        object MyTable extends Table:
           val id = Column[Int]()
           val firstName = Column[String]()
           val lastName = Column[String]()
@@ -65,13 +65,13 @@ class QueryBuilderTest extends UnitTest:
 
   test("getOrElse method not available on m:1 non-nullable relation columns") {
     val code = """
-      case object People extends Table:
+      object People extends Table:
         val id = Column[Int]()
         val name = Column[String]()
         val roleId = Column[Int]()
         lazy val role = ManyToOne(Roles, roleId)
 
-      case object Roles extends Table:
+      object Roles extends Table:
         val id = Column[Int]()
         val title = Column[String]()
 
@@ -83,5 +83,86 @@ class QueryBuilderTest extends UnitTest:
     assertContains(errors,
       "error:",
       "value getOrElse is not a member of",
+    )
+  }
+
+
+  test("groupMap (group by expression, select expression)") {
+    val code = """
+      object MyTable extends Table:
+        val id = Column[Int]()
+        val firstName = Column[String]()
+        val lastName = Column[String]()
+        val age = Column[Int]()
+
+      from(MyTable)
+        .groupMap(_.firstName)(_.lastName)
+    """
+
+    val errors = compileErrors(code)
+
+    assertContains(errors,
+      "error:",
+      "Cannot prove that tyqu.QueryBuilder.IsValidMapResult",
+    )
+  }
+
+  test("groupMap (group by expression, select tuple)") {
+    val code = """
+      object MyTable extends Table:
+        val id = Column[Int]()
+        val firstName = Column[String]()
+        val lastName = Column[String]()
+        val age = Column[Int]()
+
+      from(MyTable)
+        .groupMap(_.firstName){ t => (t.firstName, t.lastName) }
+    """
+
+    val errors = compileErrors(code)
+
+    assertContains(errors,
+      "error:",
+      "Cannot prove that tyqu.QueryBuilder.IsValidMapResult",
+    )
+  }
+
+  test("groupMap (group by tuple, select expression)") {
+    val code = """
+      object MyTable extends Table:
+        val id = Column[Int]()
+        val firstName = Column[String]()
+        val lastName = Column[String]()
+        val age = Column[Int]()
+
+      from(MyTable)
+        .groupMap{ t => (t.firstName, t.lastName)}(_.age)
+    """
+
+    val errors = compileErrors(code)
+
+    assertContains(errors,
+      "error:",
+      "Cannot prove that tyqu.QueryBuilder.IsValidMapResult",
+    )
+  }
+
+  test("groupMap (group by tuple, select tuple)") {
+    val code = """
+      object MyTable extends Table:
+        val id = Column[Int]()
+        val firstName = Column[String]()
+        val lastName = Column[String]()
+        val age = Column[Int]()
+
+      from(MyTable)
+        .groupMap{ t => (t.firstName, t.lastName) }{ t => (t.firstName, t.lastName, t.age) }
+    """
+
+    val errors = compileErrors(code)
+
+    assertContains(errors,
+      "error:",
+      "Cannot prove that tyqu.QueryBuilder.IsValidMapResult",
     )
   }

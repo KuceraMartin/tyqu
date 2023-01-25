@@ -1,4 +1,6 @@
 //> using option "-Yexplicit-nulls"
 
 
-package object tyqu
+package object tyqu:
+
+  export tyqu.RefinedScope.groupMapScope
