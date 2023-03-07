@@ -27,5 +27,5 @@ object QueryBuilderFactory:
     else
       '{
         val newScope = $fn($originalScope).asInstanceOf[S]
-        $newQb.copy(scope = newScope.asInstanceOf[QueryBuilder.WidenScopeType[newScope.type]])
+        $newQb.copy(scope = newScope.asInstanceOf[QueryBuilder.WidenScopeType[S]])
       }
