@@ -6,6 +6,17 @@ Supported platforms:
 * MySQL
 * PostgreSQL
 
+Installation
+------------
+With Scala CLI: add the following to your `project.scala` file.
+```scala
+//> using dep "ch.epfl.tyqu::tyqu:0.0.1"
+```
+
+With sbt: add the following to your `build.sbt` file.
+```scala
+libraryDependencies += "ch.epfl.tyqu" %% "tyqu" % "0.0.1"
+```
 
 Usage
 -----
