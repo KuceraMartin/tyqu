@@ -1,0 +1,41 @@
+name: CI
+on:
+  push:
+    branches:
+    - main
+    tags:
+    - "v*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: coursier/cache-action@v6.4
+    - uses: VirtusLab/scala-cli-setup@v0.1
+    - name: Compile
+      run: scala-cli compile --test src/
+    - name: Test
+      run: scala-cli test src/
+
+  publish:
+    needs: test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: coursier/cache-action@v6.4
+    - uses: VirtusLab/scala-cli-setup@v0.1
+    - name: Publish
+      run: scala-cli publish .
+      env:
+        PUBLISH_USER: ${{ secrets.PUBLISH_USER }}
+        PUBLISH_PASSWORD: ${{ secrets.PUBLISH_PASSWORD }}
+        PUBLISH_SECRET_KEY: ${{ secrets.PUBLISH_SECRET_KEY }}
+        PUBLISH_SECRET_KEY_PASSWORD: ${{ secrets.PUBLISH_SECRET_KEY_PASSWORD }}

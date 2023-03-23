@@ -6,3 +6,10 @@
 //> using publish.license "Apache-2.0"
 //> using publish.repository "central-s01"
 //> using publish.developer "KuceraMartin|Martin Kučera|https://github.com/KuceraMartin"
+
+//> using publish.ci.computeVersion "git:tag"
+//> using publish.ci.repository "central-s01"
+//> using publish.ci.user "env:PUBLISH_USER"
+//> using publish.ci.password "env:PUBLISH_PASSWORD"
+//> using publish.ci.secretKey "env:PUBLISH_SECRET_KEY"
+//> using publish.ci.secretKeyPassword "env:PUBLISH_SECRET_KEY_PASSWORD"
