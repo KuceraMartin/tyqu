@@ -2,7 +2,7 @@
 //> using publish.name "tyqu"
 //> using publish.computeVersion "git:tag"
 //> using publish.url "https://github.com/KuceraMartin/tyqu"
-//> using publish.versionControl "scm:git:github.com/KuceraMartin/tyqu.git"
+//> using publish.versionControl "github:KuceraMartin/tyqu"
 //> using publish.license "Apache-2.0"
 //> using publish.repository "central-s01"
 //> using publish.developer "KuceraMartin|Martin Kučera|https://github.com/KuceraMartin"
