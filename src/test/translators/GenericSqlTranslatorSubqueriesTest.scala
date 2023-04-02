@@ -8,7 +8,7 @@ import tyqu.{*, given}
 
 class GenericSqlTranslatorSubqueriesTest extends UnitTest:
 
-  case object Releases extends Table:
+  object Releases extends Table:
     val id = Column[Int](primary = true)
     val title = Column[String]()
     val country = Column[String]()
@@ -16,7 +16,7 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     lazy val artists = ManyToMany(Artists, ReleasedBy, ReleasedBy.releaseId, ReleasedBy.artistId)
     lazy val tracks = OneToMany(Tracks, Tracks.release)
 
-  case object Tracks extends Table:
+  object Tracks extends Table:
     val id = Column[Int](primary = true)
     val position = Column[String]()
     val title = Column[String]()
@@ -24,12 +24,12 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
     val releaseId = Column[Int | Null]()
     lazy val release = ManyToOne(Releases, releaseId, nullable = true)
   
-  case object Artists extends Table:
+  object Artists extends Table:
     val id = Column[Int](primary = true)
     val name = Column[String]()
     val releases = ManyToMany(Releases, ReleasedBy, ReleasedBy.artistId, ReleasedBy.releaseId)
   
-  case object ReleasedBy extends Table:
+  object ReleasedBy extends Table:
     val releaseId = Column[Int]()
     val artistId = Column[Int]()
 
@@ -334,5 +334,32 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
            |FROM `tracks`
            |LEFT JOIN `releases` ON `releases`.`id` = `tracks`.`release_id`""".stripMargin,
         List("no release")
+      ))
+  }
+
+
+  test("for comprehension") {
+    val query = translator.translate(
+      for
+        a <- from(Artists) if a.name === "Daft Punk"
+        r <- a.releases
+        t <- r.tracks
+      yield (
+        a.name,
+        r.title.as("release"),
+        t.title.as("track"),
+      )
+    )
+
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `artists`.`name`, `releases`.`title` AS `release`, `tracks`.`title` AS `track`
+           |FROM
+           |  `artists`,
+           |  `releases`
+           |    JOIN `released_by` ON `released_by`.`release_id` = `releases`.`id`,
+           |  `tracks`
+           |WHERE `artists`.`name` = ? AND (`released_by`.`artist_id` = `artists`.`id` AND `tracks`.`release_id` = `releases`.`id`)""".stripMargin,
+        List("Daft Punk")
       ))
   }

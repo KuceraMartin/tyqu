@@ -12,13 +12,13 @@ import scala.collection.mutable.ArrayBuffer
 
 class GenericSqlTranslator(platform: Platform) extends Translator:
 
-  private def relationsFromExpression(e: Expression[?], withSubqueries: Boolean): Seq[Relation] =
+  private def relationsFromExpression(e: AnyExpression, withSubqueries: Boolean): Seq[Relation] =
     e match
       case ColumnValue(_, relation) => List(relation)
       case SubqueryExpression(qb) => if withSubqueries then collectRelations(qb) else Nil
-      case Function(_, args) => args.flatMap(relationsFromExpression(_, withSubqueries))
+      case Function(_, args) => args.toList.flatMap{ e => relationsFromExpression(e.asInstanceOf, withSubqueries) }
       case p: Product =>
-        p.productIterator.collect{ case e: Expression[?] => e }.flatMap(relationsFromExpression(_, withSubqueries)).toSeq
+        p.productIterator.collect{ case e: AnyExpression => e }.flatMap(relationsFromExpression(_, withSubqueries)).toSeq
 
   private def collectRelations(qb: QueryBuilder[?], withSubqueries: Boolean = true): Seq[Relation] =
     List(
@@ -31,12 +31,12 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
       qb.scope match
         case t: TupleScope => t.toList.flatMap(relationsFromExpression(_, withSubqueries))
         case t: TableScope[?, ?] => List(t.relation)
-        case e: Expression[?] => relationsFromExpression(e, withSubqueries),
+        case e: AnyExpression => relationsFromExpression(e, withSubqueries),
 
       relationsFromExpression(qb.where, withSubqueries),
 
       qb.orderBy.map{
-          case e: Expression[?] => e
+          case e: AnyExpression => e
           case Asc(e) => e
           case Desc(e) => e
         }
@@ -66,11 +66,15 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
 
     val parameters = ArrayBuffer[Any]()
 
+    case class AllowAliases(on: Boolean)
+
     def doTranslate(
       qb: QueryBuilder[?],
       inScope: Set[Relation] = Set.empty,
       indent: Boolean = true,
     ): String =
+      given AllowAliases(true)
+
       val joinSucc = collectRelations(qb).flatMap{
           case r: JoinRelation[?] =>
             val e = r.on(r)
@@ -83,7 +87,7 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
 
       def translateSelectSope(scope: Scope) =
         scope match
-          case expr: Expression[?] =>
+          case expr: AnyExpression =>
             translateSelectExpression(expr)
           case scope: TupleScope =>
             scope.toList.map(translateSelectExpression).mkString(", ")
@@ -91,7 +95,7 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
             f"${platform.formatIdentifier(tableAliases(scope.relation))}.*"
 
 
-      def translateSelectExpression(select: Expression[?]): String = select match
+      def translateSelectExpression(select: AnyExpression): String = select match
         case Alias(alias, expression) =>
           f"${translateExpression(expression)} AS ${platform.formatIdentifier(alias)}"
         case _ => translateExpression(select)
@@ -125,16 +129,19 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
       def translateOrderByExpression(ord: OrderBy) = ord match
         case Asc(expr) => translateExpression(expr) + " ASC"
         case Desc(expr) => translateExpression(expr) + " DESC"
-        case expr: Expression[?] => translateExpression(expr)
+        case expr: AnyExpression => translateExpression(expr)
 
 
-      def translateExpression(expr: Expression[?], inParentheses: Boolean = false): String =
+      def translateExpression(expr: AnyExpression, inParentheses: Boolean = false)(using allowAliases: AllowAliases): String =
         expr match
           case ColumnValue(name, relation) =>
             platform.formatIdentifier(tableAliases(relation)) + "." + platform.formatIdentifier(relation.getColumnName(name))
 
-          case Alias(name, _) =>
-            platform.formatIdentifier(name)
+          case Alias(name, expr) =>
+            if allowAliases.on then
+              platform.formatIdentifier(name)
+            else
+              translateExpression(expr)
 
           case SubqueryExpression(qb: QueryBuilder[?]) =>
             val (lb, rb) = if (inParentheses) ("", "") else ("(", ")")
@@ -150,17 +157,17 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
             "?"
 
           case And(lhs, rhs) =>
-            val tl = wrapInParentheses[Or](lhs)
-            val tr = wrapInParentheses[And | Or](rhs)
+            val tl = wrapInParentheses[Or[?, ?]](lhs)
+            val tr = wrapInParentheses[And[?, ?] | Or[?, ?]](rhs)
             f"$tl AND $tr"
 
           case Or(lhs, rhs) =>
-            val tl = wrapInParentheses[And](lhs)
-            val tr = wrapInParentheses[And | Or](rhs)
+            val tl = wrapInParentheses[And[?, ?]](lhs)
+            val tr = wrapInParentheses[And[?, ?] | Or[?, ?]](rhs)
             f"$tl OR $tr"
 
           case Not(expr) =>
-            val tr = wrapInParentheses[And | Or | Not](expr)
+            val tr = wrapInParentheses[And[?, ?] | Or[?, ?] | Not[?]](expr)
             f"NOT $tr"
 
           case IsNull(expr) =>
@@ -189,37 +196,51 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
 
           case Plus(lhs, rhs) =>
             val tl = translateExpression(lhs)
-            var tr = wrapInParentheses[Plus[?, ?] | Minus[?, ?]](rhs)
+            var tr = wrapInParentheses[Plus[?, ?, ?, ?] | Minus[?, ?, ?, ?]](rhs)
             f"${tl} + ${tr}"
 
           case Minus(lhs, rhs) =>
             val tl = translateExpression(lhs)
-            val tr = wrapInParentheses[Plus[?, ?] | Minus[?, ?]](rhs)
+            val tr = wrapInParentheses[Plus[?, ?, ?, ?] | Minus[?, ?, ?, ?]](rhs)
             f"$tl - $tr"
 
           case Multiply(lhs, rhs) =>
-            val tl = wrapInParentheses[Plus[?, ?] | Minus[?, ?]](lhs)
-            val tr = wrapInParentheses[Plus[?, ?] | Minus[?, ?] | Multiply[?, ?] | Divide[?, ?]](rhs)
+            val tl = wrapInParentheses[Plus[?, ?, ?, ?] | Minus[?, ?, ?, ?]](lhs)
+            val tr = wrapInParentheses[Plus[?, ?, ?, ?] | Minus[?, ?, ?, ?] | Multiply[?, ?, ?, ?] | Divide[?, ?, ?, ?]](rhs)
             f"$tl * $tr"
 
           case Divide(lhs, rhs) =>
             val tl = translateExpression(lhs)
-            val tr = wrapInParentheses[Plus[?, ?] | Minus[?, ?] | Multiply[?, ?] | Divide[?, ?]](rhs)
+            val tr = wrapInParentheses[Plus[?, ?, ?, ?] | Minus[?, ?, ?, ?] | Multiply[?, ?, ?, ?] | Divide[?, ?, ?, ?]](rhs)
             f"$tl / $tr"
 
-          case Function(name, List(arg1)) =>
+          case Concat(a, b) =>
+            def rec(a: AnyExpression, b: AnyExpression): List[String] =
+              List(a, b).flatMap{
+                case Concat(a, b) => rec(a, b)
+                case expr => List(translateExpression(expr))
+              }
+            val translated = rec(a, b)
+            f"CONCAT(${translated.mkString(", ")})"
+
+          case Function(name, (arg1: AnyExpression)) =>
             f"$name(${translateExpression(arg1, inParentheses = true)})"
 
-          case Function(name, List(arg1, arg2)) if (platform.isInfixOperator(name)) =>
+          case Function(name, (arg1: AnyExpression, arg2: AnyExpression)) if (platform.isInfixOperator(name)) =>
             f"${translateExpression(arg1)} $name ${translateExpression(arg2)}"
 
-          case Function(name, lst) =>
-            f"$name(${lst.map(translateExpression(_)).mkString(", ")})"
+          case Function(name, args) =>
+            val translated = args.toList.map{ e => translateExpression(e.asInstanceOf) }
+            f"$name(${translated.mkString(", ")})"
+
+          case Aggregation(name, args) =>
+            val translated = args.toList.map{ e => translateExpression(e.asInstanceOf) }
+            f"$name(${translated.mkString(", ")})"
 
       end translateExpression
 
 
-      def wrapInParentheses[T](e: Expression[?])(using TypeTest[Expression[?], T]): String =
+      def wrapInParentheses[T](e: AnyExpression)(using TypeTest[AnyExpression, T]): String =
         val translated = translateExpression(e)
         e match
           case _: T => f"($translated)"
@@ -246,6 +267,13 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
         qb.where match
           case NoFilterExpression => None
           case expr => Some("WHERE " + translateExpression(expr)),
+
+        if qb.groupBy.isEmpty then None
+        else Some("GROUP BY " + qb.groupBy.map(translateExpression(_)).mkString(", ")),
+
+        qb.having match
+          case NoFilterExpression => None
+          case expr => Some("HAVING " + translateExpression(expr)(using AllowAliases(false))),
 
         if (qb.orderBy.isEmpty) None
         else Some("ORDER BY " + qb.orderBy.map(translateOrderByExpression).mkString(", ")),

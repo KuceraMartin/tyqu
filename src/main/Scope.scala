@@ -5,20 +5,20 @@ import scala.language.unsafeNulls
 import utils.checkTupleOf
 
 
-type Scope = MultiScope | Expression[?]
+type Scope = MultiScope | Expression[?, true]
 
 given [S <: TupleScope]: (RefinedScope[S] { type Refined = S }) = new RefinedScope[S] { type Refined = S }
-given [T <: NamedExpression[?, ?]]: (RefinedScope[T] { type Refined = T } ) = new RefinedScope[T] { type Refined = T }
-given [T, E <: Expression[T]]: (RefinedScope[E] { type Refined = Expression[T] } ) = new RefinedScope[E] { type Refined = Expression[T] }
+given [T <: NamedExpression[?, true, ?]]: (RefinedScope[T] { type Refined = T } ) = new RefinedScope[T] { type Refined = T }
+given [T, E <: Expression[T, true]]: (RefinedScope[E] { type Refined = Expression[T, ?] } ) = new RefinedScope[E] { type Refined = Expression[T, ?] }
 
 
 abstract class MultiScope:
-  private[tyqu] def toList: List[NamedExpression[?, ?]]
+  private[tyqu] def toList: List[NamedExpression[?, true, ?]]
 
 
 class TupleScope(private[tyqu] val items: Tuple) extends MultiScope with Selectable:
 
-  private[tyqu] val toList = items.productIterator.toList.asInstanceOf[List[NamedExpression[?, ?]]]
+  private[tyqu] val toList = items.productIterator.toList.asInstanceOf[List[NamedExpression[?, true, ?]]]
 
   protected val columns = toList.map{ expr => (expr.alias, expr) }.toMap
 
@@ -28,24 +28,24 @@ class TupleScope(private[tyqu] val items: Tuple) extends MultiScope with Selecta
     def rec(items: Tuple): Tuple =
       items match
         case EmptyTuple => EmptyTuple
-        case (head: NamedExpression[t, n]) *: tail =>
-          ColumnValue[t, n](head.alias, relation) *: rec(tail)
+        case (head: NamedExpression[t, s, n]) *: tail =>
+          ColumnValue[t, s, n](head.alias, relation) *: rec(tail)
     new TupleScope(rec(items)).asInstanceOf[this.type]
 
 end TupleScope
 
 
 extension [S <: TupleScope](lhs: S) {
-  transparent inline infix def :*[E <: NamedExpression[?, ?]](inline expr: E) =
+  transparent inline infix def :*[E <: NamedExpression[?, ?, ?]](inline expr: E) =
     lhs ++ Tuple1[E](expr)
 
   transparent inline infix def ++[T <: Tuple](inline tuple: T): TupleScope =
-    checkTupleOf[NamedExpression[?, ?]](tuple)
+    checkTupleOf[NamedExpression[?, ?, ?]](tuple)
     ScopeFactory.concatRight(lhs, tuple)
 }
 
 
-extension [E <: NamedExpression[?, ?]](lhs: E) {
+extension [E <: NamedExpression[?, ?, ?]](lhs: E) {
   transparent inline infix def *:[S <: TupleScope](inline scope: S) =
     Tuple1(lhs) ++ scope
 }
@@ -53,7 +53,7 @@ extension [E <: NamedExpression[?, ?]](lhs: E) {
 
 extension [T <: Tuple](lhs: T) {
   transparent inline infix def ++[S <: TupleScope](inline scope: S) =
-    checkTupleOf[NamedExpression[?, ?]](lhs)
+    checkTupleOf[NamedExpression[?, ?, ?]](lhs)
     ScopeFactory.concatLeft(lhs, scope)
 }
 
@@ -64,7 +64,7 @@ class TableScope[T <: Table, Nullable <: Boolean](
 
   private[tyqu] def pk = relation.pk
 
-  private [tyqu] def toList: List[ColumnValue[?, ?]] =
+  private [tyqu] def toList: List[ColumnValue[?, true, ?]] =
     relation.table.columns.map(relation.colToExpr).toList
 
   def selectDynamic(name: String): Any =
@@ -74,22 +74,22 @@ class TableScope[T <: Table, Nullable <: Boolean](
       case OneToMany(sourceTable, ManyToOne(_, through)) =>
         val propName = sourceTable.colToName(through)
         val qb = from(sourceTable)
-        val expr = qb.scope.selectDynamic(propName).asInstanceOf[Expression[Any]] === pk.asInstanceOf[Expression[Any]]
+        val expr = qb.scope.selectDynamic(propName).asInstanceOf[Expression[Any, true]] === pk.asInstanceOf[Expression[Any, true]]
         qb.copy(where = expr)
       case ManyToMany(targetTable, joiningTable, sourceColumn, targetColumn) =>
         val qb = from(targetTable)
         val targetScope = qb.scope
-        val targetPk = targetScope.pk.asInstanceOf[Expression[Any]]
+        val targetPk = targetScope.pk.asInstanceOf[Expression[Any, true]]
         val rel = JoinRelation(joiningTable, JoinType.Inner, { join =>
-              join.colToExpr(targetColumn).asInstanceOf[Expression[Any]] === targetPk
+              join.colToExpr(targetColumn).asInstanceOf[Expression[Any, true]] === targetPk
             })
-        val expr = rel.colToExpr(sourceColumn).asInstanceOf[Expression[Any]] === pk.asInstanceOf[Expression[Any]]
+        val expr = rel.colToExpr(sourceColumn).asInstanceOf[Expression[Any, true]] === pk.asInstanceOf[Expression[Any, true]]
         qb.copy(where = expr)
 
       case ManyToOne(target, through) =>
-        val throughExpr = relation.colToExpr(through).asInstanceOf[Expression[Any]]
+        val throughExpr = relation.colToExpr(through).asInstanceOf[Expression[Any, true]]
         val rel = JoinRelation(target, JoinType.Left, { join =>
-          join.pk.asInstanceOf[Expression[Any]] === throughExpr
+          join.pk.asInstanceOf[Expression[Any, true]] === throughExpr
         })
         TableScope(rel)
       case v => throw Exception(f"$name -> $v")

@@ -8,7 +8,7 @@ import tyqu.{*, given}
 
 class GenericSqlTranslatorTest extends UnitTest:
 
-  case object MyTable extends Table:
+  object MyTable extends Table:
     val id = Column[Int]()
     val firstName = Column[String]()
     val lastName = Column[String]()
@@ -417,14 +417,51 @@ class GenericSqlTranslatorTest extends UnitTest:
         ))
   }
 
-	
+
+  test("groupMap (group by single expression)") {
+    val query = translator.translate(
+      from(MyTable)
+        .groupMap(_.firstName){r => (r.firstName, r.age.avg.as("avgAge")) }
+        .filter(_.avgAge < 25)
+    )
+
+    assertEquals(query,
+        SqlQuery(
+          """|SELECT `my_table`.`first_name`, AVG(`my_table`.`age`) AS `avgAge`
+             |FROM `my_table`
+             |GROUP BY `my_table`.`first_name`
+             |HAVING AVG(`my_table`.`age`) < ?""".stripMargin,
+          List(25)
+        ))
+  }
+
+
+  test("groupMap (group by tubple)") {
+    val query = translator.translate(
+      from(MyTable)
+        .groupMap{ t => (t.firstName, t.lastName) }{r => (r.firstName, r.age.avg.as("avgAge")) }
+        .sortBy(_.avgAge)
+    )
+
+    assertEquals(query,
+        SqlQuery(
+          """|SELECT `my_table`.`first_name`, AVG(`my_table`.`age`) AS `avgAge`
+             |FROM `my_table`
+             |GROUP BY `my_table`.`first_name`, `my_table`.`last_name`
+             |ORDER BY `avgAge`""".stripMargin,
+          Nil
+        ))
+  }
+
+
   test("complex") {
     val query = translator.translate(
-        from(MyTable).filter{ _.age >= 18 }
-                   .map{ t => (t.id, (t.firstName + " " + t.lastName).as("name")) }
-                   .sortBy{ t => (t.name.asc, t.id.desc) }
-                   .limit(5)
-                   .offset(10)
+        from(MyTable)
+          .filter(_.age >= 18)
+          .map{ t => (t.id, (t.firstName + " " + t.lastName).as("name")) }
+          .sortBy{ t => (t.name.asc, t.id.desc) }
+          .limit(5)
+          .offset(10)
       )
 
     assertEquals(query,

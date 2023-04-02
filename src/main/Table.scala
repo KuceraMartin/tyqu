@@ -32,7 +32,7 @@ abstract class Table(
   private[tyqu] lazy val colToName: Map[Column[?], String] =
     columnsWithNames.toMap
 
-  private[tyqu] lazy val colToExpr: Map[Column[?], TableRelation[this.type] => ColumnValue[?, ?]] =
+  private[tyqu] lazy val colToExpr: Map[Column[?], TableRelation[this.type] => ColumnValue[?, true, ?]] =
     colToName.map { (col, name) =>
       val expr = (rel: Relation) => createColumnValue(col, name, rel)
       (col -> expr)
@@ -41,7 +41,7 @@ abstract class Table(
   private[tyqu] lazy val pk = columns.find(_.primary).get
 
   private def createColumnValue[ReadType](col: Column[ReadType], name: String, rel: Relation) =
-    ColumnValue[ReadType, name.type](name, rel)
+    ColumnValue[ReadType, true, name.type](name, rel)
 
 
 // , WriteType <: ReadType | Null
