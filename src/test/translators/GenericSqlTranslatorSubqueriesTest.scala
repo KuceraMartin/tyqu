@@ -336,3 +336,30 @@ class GenericSqlTranslatorSubqueriesTest extends UnitTest:
         List("no release")
       ))
   }
+
+
+  test("for comprehension") {
+    val query = translator.translate(
+      for
+        a <- from(Artists) if a.name === "Daft Punk"
+        r <- a.releases
+        t <- r.tracks
+      yield (
+        a.name,
+        r.title.as("release"),
+        t.title.as("track"),
+      )
+    )
+
+    assertEquals(query,
+      SqlQuery(
+        """|SELECT `artists`.`name`, `releases`.`title` AS `release`, `tracks`.`title` AS `track`
+           |FROM
+           |  `artists`,
+           |  `releases`
+           |    JOIN `released_by` ON `released_by`.`release_id` = `releases`.`id`,
+           |  `tracks`
+           |WHERE `artists`.`name` = ? AND (`released_by`.`artist_id` = `artists`.`id` AND `tracks`.`release_id` = `releases`.`id`)""".stripMargin,
+        List("Daft Punk")
+      ))
+  }

@@ -38,6 +38,10 @@ case class QueryBuilder[T <: Scope](
     else
       copy(having = having && expr)
 
+
+  def withFilter(predicate: T => Expression[Boolean, true]): QueryBuilder[T] =
+    filter(predicate)
+
   inline transparent def groupMap
     [G <: (Tuple | Scope), S <: Scope, T1 <: Tuple, M <: (S | T1)]
     (g: T => G)
