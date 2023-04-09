@@ -337,14 +337,14 @@ class GenericSqlTranslatorTest extends UnitTest:
 
   test("order by many columns") {
     val query = translator.translate(
-        from(MyTable).sortBy{ t => (Desc(t.lastName), Asc(t.age), Asc(t.id)) }
+        from(MyTable).sortBy{ t => (t.lastName.desc, t.age.asc, t.id) }
       )
 
       assertEquals(query,
       SqlQuery(
         """|SELECT `my_table`.*
            |FROM `my_table`
-           |ORDER BY `my_table`.`last_name` DESC, `my_table`.`age` ASC, `my_table`.`id` ASC""".stripMargin,
+           |ORDER BY `my_table`.`last_name` DESC, `my_table`.`age` ASC, `my_table`.`id`""".stripMargin,
         Seq.empty
       ))
   }

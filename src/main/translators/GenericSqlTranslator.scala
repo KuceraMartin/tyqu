@@ -37,8 +37,8 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
 
       qb.orderBy.map{
           case e: AnyExpression => e
-          case Asc(e) => e
-          case Desc(e) => e
+          case ExplicitDirection.Asc(e) => e
+          case ExplicitDirection.Desc(e) => e
         }
         .flatMap(relationsFromExpression(_, withSubqueries)),
     ).flatten
@@ -127,8 +127,8 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
 
 
       def translateOrderByExpression(ord: OrderBy) = ord match
-        case Asc(expr) => translateExpression(expr) + " ASC"
-        case Desc(expr) => translateExpression(expr) + " DESC"
+        case ExplicitDirection.Asc(expr) => translateExpression(expr) + " ASC"
+        case ExplicitDirection.Desc(expr) => translateExpression(expr) + " DESC"
         case expr: AnyExpression => translateExpression(expr)
 
 

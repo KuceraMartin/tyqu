@@ -1,14 +1,6 @@
 package utils
 
 
-type checkTupleOrInstanceOf[Actual, Expected] =
-  Actual match
-    case Expected => true
-    case EmptyTuple => true
-    case Expected *: xs => checkTupleOrInstanceOf[xs, Expected]
-    case _ => false
-
-
 type IsTupleOf[T <: Tuple, E] =
   T match
     case EmptyTuple => true

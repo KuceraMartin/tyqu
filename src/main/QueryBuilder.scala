@@ -1,7 +1,7 @@
 package tyqu
 
 import execution.QueryExecutor
-import utils.checkTupleOrInstanceOf
+import utils.IsTupleOf
 import QueryBuilder.IsValidMapResult
 import scala.annotation.targetName
 
@@ -60,20 +60,22 @@ case class QueryBuilder[T <: Scope](
   def exists(predicate: T => Expression[Boolean, true]): Expression[Boolean, true] =
     Exists(SubqueryExpression(filter(predicate).map(_ => LiteralExpression(1, static = true)).asInstanceOf))
 
-  def sortBy[Res <: Tuple | OrderBy](fn: T => Res)(using checkTupleOrInstanceOf[Res, OrderBy] =:= true): QueryBuilder[T] =
-    val newOrderBy = fn(scope) match
-      case t: Tuple => t.toList.asInstanceOf[List[OrderBy]]
-      case o: OrderBy => List(o)
+  def sortBy(fn: T => OrderBy): QueryBuilder[T] =
+    val newOrderBy = List(fn(scope))
+    copy(orderBy = newOrderBy)
+
+  def sortBy[Res <: Tuple](fn: T => Res)(using IsTupleOf[Res, OrderBy] =:= true): QueryBuilder[T] =
+    val newOrderBy = fn(scope).toList.asInstanceOf[List[OrderBy]]
     copy(orderBy = newOrderBy)
 
   def sorted(desc: Boolean): QueryBuilder[T] =
-      val newOrderBy =
-        (scope match
-            case e: Expression[?, true] => List(e)
-            case s: TupleScope => s.toList
-            case s: TableScope[?, ?] => s.toList
-        ).map(e => if desc then Desc(e) else Asc(e))
-      copy(orderBy = newOrderBy)
+    val newOrderBy: List[OrderBy] =
+      (scope match
+          case e: Expression[?, true] => List(e)
+          case s: TupleScope => s.toList
+          case s: TableScope[?, ?] => s.toList
+      ).map(e => if desc then e.desc else e)
+    copy(orderBy = newOrderBy)
 
   def sorted: QueryBuilder[T] =
     sorted(desc = false)

@@ -180,11 +180,6 @@ extension (lhs: Expression[String, ?])
   def contains(rhs: String) = Contains(needle = rhs, haystack = lhs)
 
 
-extension (e: Expression[?, true])
-  def asc = Asc(e)
-  def desc = Desc(e)
-
-
 extension [T <: Numeric | Null, E <: Expression[T, true]] (qb: QueryBuilder[E])
   def sum = qb.copy(scope = Sum(qb.scope))
   def min = qb.copy(scope = Min(qb.scope))
