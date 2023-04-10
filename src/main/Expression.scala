@@ -78,7 +78,7 @@ case class ColumnValue[T, CanSelect <: Boolean, N <: String & Singleton](name: N
 // E because the type in QueryBuilder is invariant
 case class SubqueryExpression[T, E <: Expression[T, true]](qb: QueryBuilder[E]) extends Expression[T, true]
 
-case class LiteralExpression[T](value: T, static: Boolean = false) extends Expression[T, true]
+case class LiteralValue[T](value: T, static: Boolean = false) extends Expression[T, true]
 
 abstract class ProductExpression[T, Arguments <: Tuple | Expression[?, ?]] extends Expression[T, ArgsCanSelect[Arguments]]
 
@@ -115,7 +115,7 @@ object Avg extends UnaryNumericAggregation("AVG")
 object Min extends UnaryNumericAggregation("MIN")
 object Max extends UnaryNumericAggregation("MAX")
 
-def lit[T](value: T) = LiteralExpression(value)
+def lit[T](value: T) = LiteralValue(value)
 
 abstract class BinaryFunction[T](name: String):
   def apply[E1 <: Expression[?, ?], E2 <: Expression[?, ?]](a: E1, b: E2) =
@@ -194,9 +194,9 @@ extension [T <: Numeric | Null] (e: Expression[T, false])
   def avg = Avg(e)
 
 
-given Conversion[String, Expression[String, true]] = LiteralExpression(_)
-given Conversion[Int, Expression[Int, true]] = LiteralExpression(_)
+given Conversion[String, Expression[String, true]] = LiteralValue(_)
+given Conversion[Int, Expression[Int, true]] = LiteralValue(_)
 given [T, E <: Expression[T, true]]: Conversion[QueryBuilder[E], Expression[T, true]] = SubqueryExpression(_)
 
 
-object NoFilterExpression extends LiteralExpression(true)
+object NoFilterExpression extends LiteralValue(true)

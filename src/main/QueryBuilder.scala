@@ -58,7 +58,7 @@ case class QueryBuilder[T <: Scope](
   end groupMap
   
   def exists(predicate: T => Expression[Boolean, true]): Expression[Boolean, true] =
-    Exists(SubqueryExpression(filter(predicate).map(_ => LiteralExpression(1, static = true)).asInstanceOf))
+    Exists(SubqueryExpression(filter(predicate).map(_ => LiteralValue(1, static = true)).asInstanceOf))
 
   def sortBy(fn: T => OrderBy): QueryBuilder[T] =
     val newOrderBy = List(fn(scope))

@@ -147,12 +147,12 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
             val (lb, rb) = if (inParentheses) ("", "") else ("(", ")")
             f"$lb\n${doTranslate(qb, newInScope)}\n$rb"
 
-          case LiteralExpression(value, true) =>
+          case LiteralValue(value, true) =>
             value match
               case v: Numeric => v.toString
               case v => platform.formatStringLiteral(v.toString)
 
-          case LiteralExpression(value, false) =>
+          case LiteralValue(value, false) =>
             parameters += value
             "?"
 
