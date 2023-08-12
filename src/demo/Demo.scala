@@ -9,7 +9,6 @@ import tyqu.execution.QueryExecutor
 import tyqu.translators.GenericSqlTranslator
 import tyqu.platforms.*
 import tyqu.execution.PostgreSqlQueryExecutor
-import tyqu.execution.RefinedResult
 
 
 case object Releases extends Table:
@@ -49,8 +48,9 @@ case object ReleasedBy extends Table:
 
 object Demo:
   def main(args: Array[String]) =
-    val connection = DriverManager.getConnection("jdbc:postgresql://localhost:5432/discogs?user=postgres&password=BigData1&ssl=false").nn
-    given PostgreSqlQueryExecutor(connection)
+    val connection = DriverManager.getConnection("jdbc:postgresql://localhost:5432/discogs?user=user&password=1234&ssl=false").nn
+    val pqe = PostgreSqlQueryExecutor(connection)
+    given QueryExecutor = pqe
 
     val q =
       // Find out the average track duration.
@@ -60,8 +60,11 @@ object Demo:
       // What are the names and IDs of the top 10 artists with the most releases?
 
       // How many artists have at least 10000 seconds of released music (i.e., total track duration >= 10000) and at least one release with the genre 'Classical'?
-      from(Releases).limit(10).map(_.id * 2)
+      from(Releases).limit(10).map{ (row) =>
+        row.title
+      }
 
     // println(translator.translate(q))
 
-    q.execute().foreach(println)
+    val rows = pqe.execute(q)
+    rows.foreach(println)

@@ -8,7 +8,7 @@ import tyqu.translators.*
 
 class QueryExecutor(connection: Connection, translator: Translator):
 	
-	def execute[S <: Scope](qb: QueryBuilder[S])(using ref: RefinedResult[S]): Iterator[ref.Refined] =
+	transparent inline def execute[S <: Scope](qb: QueryBuilder[S]): Iterator[?] =
 		val SqlQuery(query, parameters) = translator.translate(qb)
 		val stmt = connection.prepareStatement(query).nn
 		for (param, i) <- parameters.zipWithIndex do
@@ -18,17 +18,7 @@ class QueryExecutor(connection: Connection, translator: Translator):
 				case v: Double => stmt.setDouble(j, v)
 				case _ => stmt.setString(j, param.toString)
 		val rs = stmt.executeQuery().nn
-		qb.scope match
-			case s: MultiScope =>
-				def conversion(rs: ResultSet) =
-					val m = s.toList.map{ e =>
-						(e.alias.toString -> rs.getString(e.alias))
-					}
-					.toMap
-					Result(m).asInstanceOf[ref.Refined]
-				ResultIterator(rs, conversion)
-			case e: Expression[?, ?] =>
-				ResultIterator(rs, _.getString(1).asInstanceOf[ref.Refined])
+		RefinedResult.refinedResult[S](rs)
 
 end QueryExecutor
 
