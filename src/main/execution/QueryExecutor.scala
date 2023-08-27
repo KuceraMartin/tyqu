@@ -22,13 +22,13 @@ class QueryExecutor(connection: Connection, translator: Translator):
 			case s: MultiScope =>
 				def conversion(rs: ResultSet) =
 					val m = s.toList.map{ e =>
-						(e.alias.toString -> rs.getString(e.alias))
+						(e.alias.toString -> rs.getObject(e.alias))
 					}
 					.toMap
 					Result(m).asInstanceOf[ref.Refined]
 				ResultIterator(rs, conversion)
 			case e: Expression[?, ?] =>
-				ResultIterator(rs, _.getString(1).asInstanceOf[ref.Refined])
+				ResultIterator(rs, _.getObject(1).asInstanceOf[ref.Refined])
 
 end QueryExecutor
 
