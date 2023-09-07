@@ -22,7 +22,7 @@ class QueryExecutor(connection: Connection, translator: Translator):
 			case s: MultiScope =>
 				def conversion(rs: ResultSet) =
 					val m = s.toList.map{ e =>
-						(e.alias.toString -> rs.getObject(e.alias))
+						(e.alias.toString -> rs.getObject(e.underlyingName))
 					}
 					.toMap
 					Result(m).asInstanceOf[ref.Refined]

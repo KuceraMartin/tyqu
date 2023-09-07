@@ -69,11 +69,13 @@ end Expression
 
 type AnyExpression = Expression[?, ?]
 
-abstract sealed class NamedExpression[T, CanSelect <: Boolean, N <: String & Singleton](val alias: N) extends Expression[T, CanSelect]
+abstract sealed class NamedExpression[T, CanSelect <: Boolean, N <: String & Singleton](val alias: N) extends Expression[T, CanSelect]:
+  def underlyingName: String = alias
 
 case class Alias[T, CanSelect <: Boolean, N <: String & Singleton](name: N, expression: Expression[T, CanSelect]) extends NamedExpression[T, CanSelect, N](name)
 
-case class ColumnValue[T, CanSelect <: Boolean, N <: String & Singleton](name: N, relation: Relation) extends NamedExpression[T, CanSelect, N](name)
+case class ColumnValue[T, CanSelect <: Boolean, N <: String & Singleton](name: N, relation: Relation) extends NamedExpression[T, CanSelect, N](name):
+  override def underlyingName: String = relation.getColumnName(name)
 
 // E because the type in QueryBuilder is invariant
 case class SubqueryExpression[T, E <: Expression[T, true]](qb: QueryBuilder[E]) extends Expression[T, true]
