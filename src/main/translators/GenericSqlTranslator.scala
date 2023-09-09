@@ -240,7 +240,7 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
       end translateExpression
 
 
-      def wrapInParentheses[T](e: AnyExpression)(using TypeTest[AnyExpression, T]): String =
+      def wrapInParentheses[T](e: AnyExpression)(using TypeTest[AnyExpression, T], AllowAliases): String =
         val translated = translateExpression(e)
         e match
           case _: T => f"($translated)"
@@ -266,7 +266,7 @@ class GenericSqlTranslator(platform: Platform) extends Translator:
 
         qb.where match
           case NoFilterExpression => None
-          case expr => Some("WHERE " + translateExpression(expr)),
+          case expr => Some("WHERE " + translateExpression(expr)(using AllowAliases(false))),
 
         if qb.groupBy.isEmpty then None
         else Some("GROUP BY " + qb.groupBy.map(translateExpression(_)).mkString(", ")),
