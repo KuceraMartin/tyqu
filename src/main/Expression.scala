@@ -4,18 +4,15 @@ import scala.annotation.targetName
 
 import utils.IsTupleOf
 import Tuple.Fold
+import scala.compiletime.ops.boolean.*
 
 
 type Numeric = Int | Long | Float | Double
 type Primitive = Numeric | String | Char | Boolean
 
-type LogicalAnd[A, B] <: Boolean = (A, B) match
-  case (true, true) => true
-  case _ => false
-
 type ForAll[T <: Tuple, Pred[X] <: Boolean] <: Boolean = T match
   case EmptyTuple => true
-  case h *: t => LogicalAnd[Pred[h], ForAll[t, Pred]]
+  case h *: t => Pred[h] && ForAll[t, Pred]
 
 type CanSelectExpr[T] <: Boolean = T match
   case Expression[?, true] => true
@@ -176,10 +173,11 @@ extension (lhs: Expression[?, ?])
   infix def +[T, S <: Boolean](rhs: Expression[T, S]) = lhs.concat(rhs)
 
 
-extension (lhs: Expression[String, ?])
+extension [S <: Boolean] (lhs: Expression[String, S])
   def startsWith(rhs: String) = StartsWith(needle = rhs, haystack = lhs)
   def endsWith(rhs: String) = EndsWith(needle = rhs, haystack = lhs)
   def contains(rhs: String) = Contains(needle = rhs, haystack = lhs)
+  def length = Function[Int]("LENGTH", lhs)
 
 
 extension [T <: Numeric | Null, E <: Expression[T, true]] (qb: QueryBuilder[E])
