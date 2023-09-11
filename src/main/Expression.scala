@@ -4,18 +4,15 @@ import scala.annotation.targetName
 
 import utils.IsTupleOf
 import Tuple.Fold
+import scala.compiletime.ops.boolean.*
 
 
 type Numeric = Int | Long | Float | Double
 type Primitive = Numeric | String | Char | Boolean
 
-type LogicalAnd[A, B] <: Boolean = (A, B) match
-  case (true, true) => true
-  case _ => false
-
 type ForAll[T <: Tuple, Pred[X] <: Boolean] <: Boolean = T match
   case EmptyTuple => true
-  case h *: t => LogicalAnd[Pred[h], ForAll[t, Pred]]
+  case h *: t => Pred[h] && ForAll[t, Pred]
 
 type CanSelectExpr[T] <: Boolean = T match
   case Expression[?, true] => true
