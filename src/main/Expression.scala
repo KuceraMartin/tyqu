@@ -173,10 +173,11 @@ extension (lhs: Expression[?, ?])
   infix def +[T, S <: Boolean](rhs: Expression[T, S]) = lhs.concat(rhs)
 
 
-extension (lhs: Expression[String, ?])
+extension [S <: Boolean] (lhs: Expression[String, S])
   def startsWith(rhs: String) = StartsWith(needle = rhs, haystack = lhs)
   def endsWith(rhs: String) = EndsWith(needle = rhs, haystack = lhs)
   def contains(rhs: String) = Contains(needle = rhs, haystack = lhs)
+  def length = Function[Int]("LENGTH", lhs)
 
 
 extension [T <: Numeric | Null, E <: Expression[T, true]] (qb: QueryBuilder[E])
