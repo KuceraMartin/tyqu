@@ -2,7 +2,6 @@ package tyqu
 
 import scala.quoted.*
 import scala.annotation.tailrec
-import org.checkerframework.checker.units.qual.m
 
 
 trait RefinedScope[S <: Scope]:
